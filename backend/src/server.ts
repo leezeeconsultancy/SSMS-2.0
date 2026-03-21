@@ -62,7 +62,12 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 const PORT = Number(process.env.PORT) || 5001;
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-  console.log(`📱 Mobile access: http://192.168.0.104:${PORT}`);
-});
+// Only listen when running locally
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+    console.log(`📱 Mobile access: http://192.168.0.104:${PORT}`);
+  });
+}
+
+export default app;
