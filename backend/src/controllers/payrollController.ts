@@ -1,0 +1,120 @@
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/authMiddleware';
+import { SalaryRule } from '../models/SalaryRule';
+import { Employee } from '../models/Employee';
+import { Attendance } from '../models/Attendance';
+
+// Basic CRUD for Salary Rules
+export const createSalaryRule = async (req: AuthRequest, res: Response) => {
+  try {
+    const rule = await SalaryRule.create(req.body);
+    res.status(201).json(rule);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getSalaryRules = async (req: AuthRequest, res: Response) => {
+  try {
+    const rules = await SalaryRule.find({});
+    res.json(rules);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Shared salary calculation logic
+const computeSalary = async (employeeId: string, month: number, year: number) => {
+  const employee = await Employee.findById(employeeId);
+  if (!employee) throw new Error('Employee not found');
+
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59);
+
+  const attendanceRecords = await Attendance.find({
+    employeeId: employee._id,
+    date: { $gte: startDate, $lte: endDate },
+  });
+
+  const rules = await SalaryRule.find({ isActive: true });
+
+  let totalPresent = 0, totalAbsent = 0, totalLate = 0, totalHalfDays = 0, totalOvertimeHours = 0;
+
+  attendanceRecords.forEach(record => {
+    if (record.status === 'Present') totalPresent++;
+    else if (record.status === 'Late') { totalPresent++; totalLate++; }
+    else if (record.status === 'Half Day') totalHalfDays++;
+    else if (record.status === 'Absent') totalAbsent++;
+    totalOvertimeHours += record.overTimeHours || 0;
+  });
+
+  const baseSalary = employee.salary;
+  const perDaySalary = baseSalary / 30;
+  const workHoursPerDay = employee.workHoursPerDay || 9;
+  let totalDeductions = 0;
+  const deductionsBreakdown: any[] = [];
+
+  rules.forEach(rule => {
+    let count = 0;
+    if (rule.triggerType === 'Late') count = totalLate;
+    else if (rule.triggerType === 'Half Day') count = totalHalfDays;
+    else if (rule.triggerType === 'Absent') count = totalAbsent;
+
+    if (count > 0) {
+      let deductionAmount = 0;
+      if (rule.deductionType === 'FixedAmount') deductionAmount = rule.deductionValue * count;
+      else if (rule.deductionType === 'FullDayCut') deductionAmount = perDaySalary * count;
+      else if (rule.deductionType === 'Percentage') deductionAmount = (baseSalary * (rule.deductionValue / 100)) * count;
+
+      totalDeductions += deductionAmount;
+      deductionsBreakdown.push({
+        ruleName: rule.ruleName, count, deductionAmount: Math.round(deductionAmount),
+      });
+    }
+  });
+
+  const hourlyRate = baseSalary / (30 * workHoursPerDay);
+  const overtimePay = Math.round(totalOvertimeHours * (hourlyRate * 1.5));
+  const finalSalary = Math.round((baseSalary + overtimePay) - totalDeductions);
+
+  return {
+    employeeName: employee.name,
+    employeeId: employee.employeeId,
+    month, year, baseSalary,
+    workHoursPerDay,
+    overtimeHours: totalOvertimeHours,
+    overtimePay,
+    totalDeductions: Math.round(totalDeductions),
+    deductionsBreakdown,
+    finalSalary: finalSalary < 0 ? 0 : finalSalary,
+    attendanceSummary: { totalPresent, totalAbsent, totalLate, totalHalfDays },
+  };
+};
+
+// Admin: Calculate salary for any employee
+export const calculateSalary = async (req: AuthRequest, res: Response) => {
+  const { employeeId, month, year } = req.query;
+  try {
+    const result = await computeSalary(employeeId as string, Number(month), Number(year));
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Employee: View own payslip
+export const getMyPayslip = async (req: AuthRequest, res: Response) => {
+  const { month, year } = req.query;
+  try {
+    const employee = await Employee.findOne({ userId: req.user!._id });
+    if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
+
+    const m = month ? Number(month) : new Date().getMonth() + 1;
+    const y = year ? Number(year) : new Date().getFullYear();
+
+    const result = await computeSalary(employee._id.toString(), m, y);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
