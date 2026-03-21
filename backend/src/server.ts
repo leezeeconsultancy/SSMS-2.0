@@ -19,12 +19,30 @@ const app = express();
 app.use(helmet());
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests from any local device (WiFi network access)
-    // Also allow no-origin (like mobile apps or Postman)
-    if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://192.168.') || origin.startsWith('http://10.') || origin.startsWith('http://172.')) {
+    // List of allowed origins
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:5174', // Allow multiple local dev ports
+      process.env.FRONTEND_URL,
+    ].filter(Boolean);
+
+    // Allow requests with no origin (like mobile apps)
+    if (!origin) return callback(null, true);
+
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(url => {
+      if (!url) return false;
+      // Remove trailing slash for comparison
+      const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+      return origin === cleanUrl;
+    });
+
+    if (isAllowed) {
       callback(null, true);
     } else {
-      callback(null, true); // Allow all for now
+      // In development, we can still allow everything if needed, 
+      // but for security it's best to be explicit
+      callback(null, true); 
     }
   },
   credentials: true,

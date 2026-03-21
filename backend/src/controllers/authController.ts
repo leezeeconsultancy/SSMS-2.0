@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { User } from '../models/User';
+import { User, IUser } from '../models/User';
+import { AuthRequest } from '../middleware/authMiddleware';
+import mongoose from 'mongoose';
 
 const generateToken = (id: string): string => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'secret', {
@@ -21,13 +23,12 @@ export const loginUser = async (req: Request, res: Response) => {
       }
 
       // ─── DEVICE BINDING LOGIC ───
-      if (user.role === 'Employee') { // Usually restricted for employees
+      if (user.role === 'Employee') {
         if (!deviceId) {
           return res.status(400).json({ message: 'Device identification required' });
         }
 
         if (!user.authorizedDeviceId) {
-          // Bind the first device
           user.authorizedDeviceId = deviceId;
           await user.save();
         } else if (user.authorizedDeviceId !== deviceId) {
@@ -38,13 +39,13 @@ export const loginUser = async (req: Request, res: Response) => {
         }
       }
 
-      const token = generateToken((user._id as any).toString());
+      const token = generateToken((user._id as mongoose.Types.ObjectId).toString());
       
       res.cookie('jwt', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV !== 'development', // Use secure cookies in production
-        sameSite: 'strict',
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
       });
 
       res.json({
@@ -58,16 +59,21 @@ export const loginUser = async (req: Request, res: Response) => {
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
     }
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: errorMessage });
   }
 };
 
-export const getMe = async (req: any, res: Response) => {
+export const getMe = async (req: AuthRequest, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
     const user = await User.findById(req.user._id).select('-password');
     res.json(user);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: errorMessage });
   }
 };

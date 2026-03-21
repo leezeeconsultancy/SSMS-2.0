@@ -1,14 +1,21 @@
-import { Queue, Worker, Job } from 'bullmq';
+import { Queue, Worker, Job, ConnectionOptions } from 'bullmq';
 import Redis from 'ioredis';
 
-// Redis connection
-const connection = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379');
+// Redis connection instance
+// We use 'any' cast here only if the types strictly conflict due to version mismatch in node_modules,
+// but first we try to use ConnectionOptions which is the recommended way.
+const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+const connection = new Redis(redisUrl, {
+  maxRetriesPerRequest: null, // Required by BullMQ
+});
 
 // Create a new queue
-export const notificationQueue = new Queue('Notifications', { connection });
+export const notificationQueue = new Queue('Notifications', { 
+  connection: connection as unknown as ConnectionOptions 
+});
 
 // Add a job to the queue
-export const sendNotification = async (userId: string, title: string, message: string) => {
+export const sendNotification = async (userId: string, title: string, message: string): Promise<void> => {
   await notificationQueue.add('send-notification', { userId, title, message });
 };
 
@@ -16,15 +23,14 @@ export const sendNotification = async (userId: string, title: string, message: s
 export const notificationWorker = new Worker(
   'Notifications',
   async (job: Job) => {
-    const { userId, title, message } = job.data;
+    const { userId, title, message } = job.data as { userId: string, title: string, message: string };
     
     // Simulate sending email / push notification
     console.log(`[Notification Worker] Sending ${title} to User ${userId}: ${message}`);
     
-    // In a real app, this would use FCM, WebSockets, or Nodemailer
     return { success: true, deliveredAt: new Date() };
   },
-  { connection }
+  { connection: connection as unknown as ConnectionOptions }
 );
 
 notificationWorker.on('completed', (job: Job) => {

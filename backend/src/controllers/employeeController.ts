@@ -38,8 +38,9 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
     });
 
     res.status(201).json(employee);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: errorMessage });
   }
 };
 
@@ -47,8 +48,9 @@ export const getEmployees = async (req: AuthRequest, res: Response) => {
   try {
     const employees = await Employee.find({}).populate('userId', 'role status');
     res.json(employees);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: errorMessage });
   }
 };
 
@@ -59,8 +61,9 @@ export const getEmployeeById = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Employee not found' });
     }
     res.json(employee);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: errorMessage });
   }
 };
 
@@ -78,8 +81,9 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
       { new: true }
     );
     res.json(updatedEmployee);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: errorMessage });
   }
 };
 
@@ -88,8 +92,9 @@ export const getMyProfile = async (req: AuthRequest, res: Response) => {
     const employee = await Employee.findOne({ userId: req.user!._id }).populate('userId', 'role status email');
     if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
     res.json(employee);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: errorMessage });
   }
 };
 
@@ -105,8 +110,9 @@ export const deleteEmployee = async (req: AuthRequest, res: Response) => {
     await Employee.findByIdAndDelete(req.params.id);
 
     res.json({ message: 'Employee deleted successfully' });
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: errorMessage });
   }
 };
 
