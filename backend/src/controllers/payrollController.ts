@@ -8,18 +8,20 @@ import { Attendance } from '../models/Attendance';
 export const createSalaryRule = async (req: AuthRequest, res: Response) => {
   try {
     const rule = await SalaryRule.create(req.body);
-    res.status(201).json(rule);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(201).json(rule);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ message });
   }
 };
 
 export const getSalaryRules = async (req: AuthRequest, res: Response) => {
   try {
     const rules = await SalaryRule.find({});
-    res.json(rules);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.json(rules);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ message });
   }
 };
 
@@ -96,9 +98,10 @@ export const calculateSalary = async (req: AuthRequest, res: Response) => {
   const { employeeId, month, year } = req.query;
   try {
     const result = await computeSalary(employeeId as string, Number(month), Number(year));
-    res.json(result);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ message });
   }
 };
 
@@ -113,8 +116,9 @@ export const getMyPayslip = async (req: AuthRequest, res: Response) => {
     const y = year ? Number(year) : new Date().getFullYear();
 
     const result = await computeSalary(employee._id.toString(), m, y);
-    res.json(result);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ message });
   }
 };

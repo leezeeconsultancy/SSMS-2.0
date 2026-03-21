@@ -20,9 +20,10 @@ export const applyLeave = async (req: AuthRequest, res: Response) => {
       status: 'Pending',
     });
 
-    res.status(201).json(leave);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(201).json(leave);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ message });
   }
 };
 
@@ -32,18 +33,20 @@ export const getMyLeaves = async (req: AuthRequest, res: Response) => {
     if (!employee) return res.status(404).json({ message: 'Employee not found' });
 
     const leaves = await Leave.find({ employeeId: employee._id }).sort({ createdAt: -1 });
-    res.json(leaves);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.json(leaves);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ message });
   }
 };
 
 export const getAllLeaves = async (req: AuthRequest, res: Response) => {
   try {
     const leaves = await Leave.find({}).populate('employeeId', 'name department').sort({ createdAt: -1 });
-    res.json(leaves);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.json(leaves);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ message });
   }
 };
 
@@ -55,11 +58,12 @@ export const updateLeaveStatus = async (req: AuthRequest, res: Response) => {
     if (!leave) return res.status(404).json({ message: 'Leave request not found' });
 
     leave.status = status;
-    leave.approvedBy = req.user!._id as any;
+    leave.approvedBy = req.user!._id;
     await leave.save();
 
-    res.json(leave);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.json(leave);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ message });
   }
 };

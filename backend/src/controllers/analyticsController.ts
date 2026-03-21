@@ -32,17 +32,11 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
         totalWorkHours += r.totalWorkingHours || 0;
       });
 
-      // 1. Attendance % (Weight 40%) - Formula: (Present / Total Days) * 40
       const attendanceScore = (presentDays / totalWorkingDays) * 40;
-
-      // 2. Punctuality % (Weight 30%) - Formula: ((Present - Late) / Present) * 30
       const punctualityScore = presentDays > 0 ? ((presentDays - lateDays) / presentDays) * 30 : 0;
-
-      // 3. Work Hours % (Weight 30%) - Based on employee's configured work hours per day
       const expectedHours = totalWorkingDays * (emp.workHoursPerDay || 9);
       const workHourRatio = totalWorkHours / expectedHours;
       const workHourScore = (workHourRatio > 1 ? 1 : workHourRatio) * 30;
-
       const totalScore = Math.round(attendanceScore + punctualityScore + workHourScore);
 
       leaderBoard.push({
@@ -59,12 +53,11 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Sort descending
     leaderBoard.sort((a, b) => b.totalScore - a.totalScore);
-
-    res.json(leaderBoard);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.json(leaderBoard);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ message });
   }
 };
 
@@ -103,11 +96,10 @@ export const getAbsenceAnalytics = async (req: AuthRequest, res: Response) => {
       absenceRate: stat.totalDays > 0 ? ((stat.absentDays / stat.totalDays) * 100).toFixed(2) + '%' : '0%',
     }));
 
-    // Sort by absence rate descending
     analytics.sort((a, b) => parseFloat(b.absenceRate) - parseFloat(a.absenceRate));
-
-    res.json(analytics);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.json(analytics);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ message });
   }
 };

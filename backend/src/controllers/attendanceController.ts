@@ -95,9 +95,9 @@ export const requestLateCheckIn = async (req: AuthRequest, res: Response) => {
       type: 'Late Check-in'
     });
 
-    res.status(201).json({ message: 'Request submitted to admin successfully.', request });
+    return res.status(201).json({ message: 'Request submitted to admin successfully.', request });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -107,9 +107,9 @@ export const requestLateCheckIn = async (req: AuthRequest, res: Response) => {
 export const getAttendanceRequests = async (req: AuthRequest, res: Response) => {
   try {
     const requests = await AttendanceRequest.find().populate('employeeId', 'name employeeId department').sort({ createdAt: -1 });
-    res.json(requests);
+    return res.json(requests);
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -124,9 +124,9 @@ export const updateRequestStatus = async (req: AuthRequest, res: Response) => {
     const request = await AttendanceRequest.findByIdAndUpdate(id, { status, adminNote }, { new: true });
     if (!request) return res.status(404).json({ message: 'Request not found' });
 
-    res.json({ message: `Request ${status} successfully`, request });
+    return res.json({ message: `Request ${status} successfully`, request });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -150,9 +150,9 @@ export const generateDailyQRs = async (req: AuthRequest, res: Response) => {
       results.push({ employeeId: emp.employeeId, name: emp.name, token, status: 'new' });
     }
 
-    res.json({ message: `QR tokens generated for ${today}`, date: today, count: results.length, tokens: results });
+    return res.json({ message: `QR tokens generated for ${today}`, date: today, count: results.length, tokens: results });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -172,12 +172,12 @@ export const getMyDailyQR = async (req: AuthRequest, res: Response) => {
       qr = await DailyQR.create({ employeeId: employee._id, token, date: today, used: false });
     }
 
-    res.json({
+    return res.json({
       token: qr.token, date: today, used: qr.used,
       employeeName: employee.name, employeeId: employee.employeeId,
     });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -319,9 +319,9 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
     qr.used = true;
     await qr.save();
 
-    res.status(201).json({ message: `✅ Check-in successful (${status}) at ${serverNow.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`, attendance });
+    return res.status(201).json({ message: `✅ Check-in successful (${status}) at ${serverNow.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`, attendance });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -475,12 +475,12 @@ export const checkOut = async (req: AuthRequest, res: Response) => {
     await attendance.save();
 
     const flagMsg = flags.length > 0 ? ` ⚠️ ${flags.length} flag(s) recorded.` : '';
-    res.json({
+    return res.json({
       message: `✅ Check-out at ${serverNow.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}. Worked ${validatedHours}h (required: ${requiredHours}h).${flagMsg}`,
       attendance,
     });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -493,9 +493,9 @@ export const getMyAttendance = async (req: AuthRequest, res: Response) => {
     if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
 
     const records = await Attendance.find({ employeeId: employee._id }).sort({ date: -1 }).limit(60);
-    res.json(records);
+    return res.json(records);
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -505,9 +505,9 @@ export const getMyAttendance = async (req: AuthRequest, res: Response) => {
 export const getAllAttendance = async (req: AuthRequest, res: Response) => {
   try {
     const records = await Attendance.find({}).populate('employeeId', 'name department employeeId').sort({ date: -1 });
-    res.json(records);
+    return res.json(records);
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -534,14 +534,14 @@ export const checkLocation = async (req: AuthRequest, res: Response) => {
     const distanceMeters = Math.round(distanceKm * 1000);
     const withinRange = distanceMeters <= officeLocation.radiusMeters;
 
-    res.json({
+    return res.json({
       withinRange,
       distance: distanceMeters,
       officeName: officeLocation.name,
       radiusMeters: officeLocation.radiusMeters,
     });
   } catch (error: any) {
-    res.status(500).json({ message: error.message, withinRange: false });
+    return res.status(500).json({ message: error.message, withinRange: false });
   }
 };
 
@@ -551,9 +551,9 @@ export const checkLocation = async (req: AuthRequest, res: Response) => {
 export const getOfficeLocations = async (req: AuthRequest, res: Response) => {
   try {
     const locations = await OfficeLocation.find().sort({ createdAt: -1 });
-    res.json(locations);
+    return res.json(locations);
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -581,8 +581,8 @@ export const setOfficeLocation = async (req: AuthRequest, res: Response) => {
       isActive: isActive !== false,
     });
 
-    res.status(201).json({ message: 'Office location saved successfully', location });
+    return res.status(201).json({ message: 'Office location saved successfully', location });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };

@@ -13,7 +13,6 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'User with this email already exists' });
     }
 
-    // 1. Create Login Credentials (User)
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password || 'ssms1234', salt);
 
@@ -24,7 +23,6 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
       role: role || 'Employee',
     });
 
-    // 2. Create Employee Profile
     const employee = await Employee.create({
       userId: user._id,
       employeeId,
@@ -37,20 +35,20 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
       joiningDate,
     });
 
-    res.status(201).json(employee);
+    return res.status(201).json(employee);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ message: errorMessage });
+    return res.status(500).json({ message: errorMessage });
   }
 };
 
 export const getEmployees = async (req: AuthRequest, res: Response) => {
   try {
     const employees = await Employee.find({}).populate('userId', 'role status');
-    res.json(employees);
+    return res.json(employees);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ message: errorMessage });
+    return res.status(500).json({ message: errorMessage });
   }
 };
 
@@ -60,10 +58,10 @@ export const getEmployeeById = async (req: AuthRequest, res: Response) => {
     if (!employee) {
       return res.status(404).json({ message: 'Employee not found' });
     }
-    res.json(employee);
+    return res.json(employee);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ message: errorMessage });
+    return res.status(500).json({ message: errorMessage });
   }
 };
 
@@ -80,10 +78,10 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
       req.body,
       { new: true }
     );
-    res.json(updatedEmployee);
+    return res.json(updatedEmployee);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ message: errorMessage });
+    return res.status(500).json({ message: errorMessage });
   }
 };
 
@@ -91,10 +89,10 @@ export const getMyProfile = async (req: AuthRequest, res: Response) => {
   try {
     const employee = await Employee.findOne({ userId: req.user!._id }).populate('userId', 'role status email');
     if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
-    res.json(employee);
+    return res.json(employee);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ message: errorMessage });
+    return res.status(500).json({ message: errorMessage });
   }
 };
 
@@ -103,16 +101,15 @@ export const deleteEmployee = async (req: AuthRequest, res: Response) => {
     const employee = await Employee.findById(req.params.id);
     if (!employee) return res.status(404).json({ message: 'Employee not found' });
 
-    // Delete the linked User account too
     if (employee.userId) {
       await User.findByIdAndDelete(employee.userId);
     }
     await Employee.findByIdAndDelete(req.params.id);
 
-    res.json({ message: 'Employee deleted successfully' });
+    return res.json({ message: 'Employee deleted successfully' });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ message: errorMessage });
+    return res.status(500).json({ message: errorMessage });
   }
 };
 

@@ -48,7 +48,7 @@ export const loginUser = async (req: Request, res: Response) => {
         maxAge: 30 * 24 * 60 * 60 * 1000,
       });
 
-      res.json({
+      return res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
@@ -57,11 +57,11 @@ export const loginUser = async (req: Request, res: Response) => {
         authorizedDeviceId: user.authorizedDeviceId
       });
     } else {
-      res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: 'Invalid email or password' });
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ message: errorMessage });
+    return res.status(500).json({ message: errorMessage });
   }
 };
 
@@ -71,9 +71,9 @@ export const getMe = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: 'Not authorized' });
     }
     const user = await User.findById(req.user._id).select('-password');
-    res.json(user);
+    return res.json(user);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ message: errorMessage });
+    return res.status(500).json({ message: errorMessage });
   }
 };
