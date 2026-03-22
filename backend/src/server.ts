@@ -1,16 +1,22 @@
 import express, { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { connectDB } from './config/db';
 import { startDailyQRCron } from './cron/dailyQRCron';
+import { checkDBConnection } from './middleware/dbCheck';
 
 dotenv.config();
 
 // Connect to Database, then start cron jobs
-connectDB().then(() => {
-  startDailyQRCron();
+connectDB().then((connected) => {
+  if (connected) {
+    startDailyQRCron();
+  } else {
+    console.warn('[SYSTEM] Database not connected. Skipping Cron Jobs.');
+  }
 });
 
 const app = express();
@@ -47,6 +53,18 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// Basic Route for health check (Allowed without DB)
+app.get('/api/health', (req: Request, res: Response) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
+  res.status(200).json({ 
+    status: 'API is running', 
+    database: dbStatus 
+  });
+});
+
+// Global DB Connection middleware for all other /api routes
+app.use('/api', checkDBConnection);
+
 // Routes
 import authRoutes from './routes/authRoutes';
 import employeeRoutes from './routes/employeeRoutes';
@@ -67,11 +85,6 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/holidays', holidayRoutes);
 app.use('/api/payouts', payoutRoutes);
 app.use('/api/config', configRoutes);
-
-// Basic Route for testing
-app.get('/api/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'API is healthy running SSMS' });
-});
 
 // Global Error Handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

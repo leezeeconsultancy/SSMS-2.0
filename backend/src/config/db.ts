@@ -4,12 +4,13 @@ export const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ssms');
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+    return true;
   } catch (error) {
     if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      console.error(`[DB ERROR] Connection failed: ${error.message}`);
     } else {
-      console.error('An unexpected error occurred during DB connection');
+      console.error('[DB ERROR] An unexpected error occurred during database connection');
     }
-    process.exit(1);
+    return false;
   }
 };

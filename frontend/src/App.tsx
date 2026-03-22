@@ -13,10 +13,33 @@ import Attendance from './pages/employee/Attendance';
 import LeaveRequests from './pages/employee/LeaveRequests';
 import EmployeeProfile from './pages/employee/Profile';
 import { AuthProvider } from './context/AuthContext';
+import { Toaster } from 'react-hot-toast';
+import axios from 'axios';
+import { useEffect } from 'react';
+import toast from 'react-hot-toast';
 
 const App = () => {
+  useEffect(() => {
+    // Axios Interceptor for Database Connection Errors
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 503 && error.response.data?.code === 'DB_CONNECTION_ERROR') {
+          toast.error('❌ Database Connection Offline. Some features may not work.', {
+            id: 'db-error', // Prevent multiple toasts
+            duration: 10000,
+            style: { background: '#fef2f2', color: '#b91c1c', border: '1px solid #fee2e2' }
+          });
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => axios.interceptors.response.eject(interceptor);
+  }, []);
+
   return (
     <AuthProvider>
+      <Toaster position="top-center" />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
