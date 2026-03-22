@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Plus, Trash2, Save, Sliders, Settings as SettingsIcon, 
-  Loader2, Info, RefreshCw, AlertCircle, Clock, Shield, CalendarDays
+  Loader2, Info, RefreshCw, Clock, Shield, CalendarDays
 } from 'lucide-react';
 import Tooltip from '../../components/Tooltip';
 import toast, { Toaster } from 'react-hot-toast';

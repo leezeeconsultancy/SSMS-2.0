@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { 
   Clock, CalendarCheck, TrendingUp, AlertTriangle, 
   IndianRupee, Briefcase, History, CheckCircle2, 
-  CalendarDays, Info, ArrowRight
+  CalendarDays, Info
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
