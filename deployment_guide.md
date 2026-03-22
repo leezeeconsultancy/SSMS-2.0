@@ -75,6 +75,16 @@ Once the backend is deployed, you need to create the initial admin user. You can
 
 ---
 
+## 📝 5. Monitoring Deployment Logs
+
+We have integrated a **Deployment Logger** to help you troubleshoot build failures and monitoring production status.
+
+- **Build Logs**: During deployment (on Vercel or Render), watch the console for the `🚀 SSMS DEPLOYMENT` header. If the build fails, it will clearly state `❌ BUILD FAILED`.
+- **Runtime Logs**: When the server starts in production, look for the `🚀 SSMS PRODUCTION SERVER STARTING` banner in your hosting provider's "Logs" tab.
+- **Environment Checks**: The logger automatically validates presence of critical environment variables (like `MONGODB_URI` and `JWT_SECRET`) during the build phase.
+
+---
+
 ## ✅ Deployment Checklist
 
 - [ ] **CORS**: Backend `FRONTEND_URL` matches the actual frontend domain.

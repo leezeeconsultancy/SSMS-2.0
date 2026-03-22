@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/build-logger.js start && (tsc -b && vite build) && node scripts/build-logger.js success || node scripts/build-logger.js failure",
     "lint": "eslint .",
     "preview": "vite preview"
   },

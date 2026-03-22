@@ -81,6 +81,16 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 const PORT = Number(process.env.PORT) || 5001;
 
+// Production Startup Logs
+if (process.env.NODE_ENV === 'production') {
+  console.log('------------------------------------------------------------');
+  console.log('🚀 SSMS PRODUCTION SERVER STARTING');
+  console.log(`🕒 Time: ${new Date().toISOString()}`);
+  console.log(`📡 Port: ${PORT}`);
+  console.log(`🔑 Env: ${process.env.NODE_ENV}`);
+  console.log('------------------------------------------------------------');
+}
+
 // Only listen when running locally
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, '0.0.0.0', () => {
