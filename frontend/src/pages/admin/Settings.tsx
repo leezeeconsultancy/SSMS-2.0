@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Settings as SettingsIcon, Plus, Shield, Bell, Clock, CalendarDays, Trash2, Loader2 } from 'lucide-react';
+import { 
+  Plus, Trash2, Save, Sliders, Settings as SettingsIcon, 
+  Loader2, Info, RefreshCw, AlertCircle, Clock, Shield, CalendarDays
+} from 'lucide-react';
+import Tooltip from '../../components/Tooltip';
 import toast, { Toaster } from 'react-hot-toast';
 
 const AdminSettings = () => {
   const [rules, setRules] = useState<any[]>([]);
   const [holidays, setHolidays] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState<any>(null);
+  const [configLoading, setConfigLoading] = useState(false);
 
   // New Rule Form
   const [showRuleForm, setShowRuleForm] = useState(false);
@@ -24,12 +30,14 @@ const AdminSettings = () => {
 
   const fetchData = async () => {
     try {
-      const [rulesRes, holidaysRes] = await Promise.allSettled([
+      const [rulesRes, holidaysRes, configRes] = await Promise.allSettled([
         axios.get('/api/payroll/rules'),
         axios.get('/api/holidays'),
+        axios.get('/api/config'),
       ]);
       if (rulesRes.status === 'fulfilled') setRules(rulesRes.value.data);
       if (holidaysRes.status === 'fulfilled') setHolidays(holidaysRes.value.data);
+      if (configRes.status === 'fulfilled') setConfig(configRes.value.data);
     } catch (error) {
       toast.error('Failed to load settings');
     } finally {
@@ -86,6 +94,85 @@ const AdminSettings = () => {
     }
   };
 
+  const handleDeleteRule = async (id: string) => {
+    if (!window.confirm('Delete this rule?')) return;
+    try {
+      await axios.delete(`/api/payroll/rules/${id}`);
+      toast.success('Rule deleted');
+      fetchData();
+    } catch (error: any) {
+      toast.error('Failed to delete rule');
+    }
+  };
+
+  const handleToggleRule = async (id: string) => {
+    try {
+      await axios.patch(`/api/payroll/rules/${id}/toggle`);
+      toast.success('Rule status updated');
+      fetchData();
+    } catch (error: any) {
+      toast.error('Failed to update rule');
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    setConfigLoading(true);
+    try {
+      const res = await axios.put('/api/config', config);
+      setConfig(res.data.config);
+      toast.success('Configuration saved!');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to save config');
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  const updateConfigField = (field: string, value: any) => {
+    setConfig((prev: any) => ({ ...prev, [field]: value }));
+  };
+
+  const configFields = config ? [
+    {
+      section: 'Attendance Rules',
+      icon: '🕐',
+      fields: [
+        { key: 'lateThresholdHour', label: 'Late After (Hour)', type: 'number', min: 0, max: 23, hint: '24h format, e.g. 9' },
+        { key: 'lateThresholdMinute', label: 'Late After (Minute)', type: 'number', min: 0, max: 59, hint: 'e.g. 15 → 9:15 AM' },
+        { key: 'checkInStartHour', label: 'Check-in Opens (Hour)', type: 'number', min: 0, max: 23, hint: 'Earliest check-in' },
+        { key: 'checkInEndHour', label: 'Check-in Closes (Hour)', type: 'number', min: 0, max: 23, hint: 'Latest check-in allowed' },
+        { key: 'minWorkMinutes', label: 'Min Work Before Checkout (min)', type: 'number', min: 1, max: 480 },
+        { key: 'maxWorkHours', label: 'Max Work Hours / Day', type: 'number', min: 1, max: 24 },
+      ]
+    },
+    {
+      section: 'Payroll Rules',
+      icon: '💰',
+      fields: [
+        { key: 'overtimeMultiplier', label: 'Overtime Multiplier', type: 'number', min: 1, max: 5, step: 0.1, hint: 'e.g. 1.5 = 150% rate' },
+        { key: 'workingDaysPerMonth', label: 'Working Days / Month', type: 'number', min: 20, max: 31, hint: 'Base for per-day salary calc' },
+        { key: 'maxOvertimeHoursPerDay', label: 'Max OT Hours / Day', type: 'number', min: 0, max: 12 },
+        { key: 'defaultWorkHoursPerDay', label: 'Default Work Hours / Day', type: 'number', min: 4, max: 12, hint: 'Fallback if employee has none' },
+        { key: 'defaultPayoutDay', label: 'Default Payout Day', type: 'number', min: 1, max: 28, hint: 'Day of month for salary' },
+      ]
+    },
+    {
+      section: 'Leave Policy',
+      icon: '📅',
+      fields: [
+        { key: 'defaultLeaveBalance', label: 'Annual Leave Days', type: 'number', min: 0, max: 60, hint: 'For new employees' },
+        { key: 'allowPastDateLeave', label: 'Allow Past Date Leave', type: 'toggle' },
+      ]
+    },
+    {
+      section: 'Company',
+      icon: '🏢',
+      fields: [
+        { key: 'companyName', label: 'Company Name', type: 'text' },
+      ]
+    },
+  ] : [];
+
   return (
     <div className="space-y-6">
       <Toaster position="top-right" />
@@ -93,6 +180,94 @@ const AdminSettings = () => {
         <SettingsIcon className="mr-2 h-6 w-6 text-primary-500" />
         System Settings
       </h2>
+
+      {/* Dynamic System Configuration */}
+      {config && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-semibold text-gray-900 flex items-center text-sm">
+              <Sliders className="h-4 w-4 mr-2 text-primary-500" /> System Configuration
+            </h3>
+            <button 
+              onClick={handleSaveConfig} 
+              disabled={configLoading}
+              className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-primary-700 disabled:opacity-50 transition-all"
+            >
+              {configLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+              {configLoading ? 'Saving...' : 'Save Config'}
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {configFields.map((section, si) => (
+              <div key={si}>
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center">
+                  <span className="mr-2">{section.icon}</span> {section.section}
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {section.fields.map((field) => (
+                    <div key={field.key} className="bg-gray-50 rounded-lg p-3 border border-gray-100 relative group">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">{field.label}</label>
+                        {(field as any).hint && (
+                          <Tooltip content={(field as any).hint} position="top">
+                            <Info className="h-3 w-3 text-gray-400 cursor-help" />
+                          </Tooltip>
+                        )}
+                      </div>
+                      {field.type === 'toggle' ? (
+                        <button
+                          onClick={() => updateConfigField(field.key, !config[field.key])}
+                          className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${
+                            config[field.key] 
+                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' 
+                              : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                          }`}
+                        >
+                          {config[field.key] ? 'Enabled' : 'Disabled'}
+                        </button>
+                      ) : field.type === 'text' ? (
+                        <input
+                          type="text"
+                          value={config[field.key] || ''}
+                          onChange={(e) => updateConfigField(field.key, e.target.value)}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-primary-500 focus:border-primary-500 bg-white"
+                        />
+                      ) : (
+                        <input
+                          type="number"
+                          value={config[field.key] ?? ''}
+                          onChange={(e) => updateConfigField(field.key, Number(e.target.value))}
+                          min={(field as any).min}
+                          max={(field as any).max}
+                          step={(field as any).step || 1}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-primary-500 focus:border-primary-500 bg-white"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Live Preview */}
+          <div className="mt-6 bg-primary-50 border border-primary-100 rounded-xl p-4">
+            <h4 className="text-xs font-black text-primary-700 uppercase tracking-widest mb-2 flex items-center">
+              <RefreshCw className="h-3 w-3 mr-1.5" /> Live Preview
+            </h4>
+            <div className="space-y-1.5 text-sm text-primary-800">
+              <p>• Late after <strong>{config.lateThresholdHour}:{String(config.lateThresholdMinute).padStart(2, '0')} {config.lateThresholdHour >= 12 ? 'PM' : 'AM'}</strong></p>
+              <p>• Check-in window: <strong>{config.checkInStartHour}:00 AM</strong> to <strong>{config.checkInEndHour > 12 ? config.checkInEndHour - 12 : config.checkInEndHour}:00 {config.checkInEndHour >= 12 ? 'PM' : 'AM'}</strong></p>
+              <p>• Overtime: <strong>{config.overtimeMultiplier}x</strong> rate after <strong>{config.defaultWorkHoursPerDay}h</strong></p>
+              <p>• Salary based on <strong>{config.workingDaysPerMonth} working days</strong>/month</p>
+              <p>• Max OT cap: <strong>{config.maxOvertimeHoursPerDay}h</strong>/day</p>
+              <p>• New employees get <strong>{config.defaultLeaveBalance} days</strong> annual leave</p>
+              <p>• Past-date leave: <strong>{config.allowPastDateLeave ? 'Allowed' : 'Not Allowed'}</strong></p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Info: Auto QR Generation */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start">
@@ -161,9 +336,20 @@ const AdminSettings = () => {
                   {rule.deductionType === 'Percentage' && `${rule.deductionValue}% of salary`}
                 </p>
               </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${rule.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
-                {rule.isActive ? 'Active' : 'Disabled'}
-              </span>
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={() => handleToggleRule(rule._id)}
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${rule.isActive ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                >
+                  {rule.isActive ? 'Active' : 'Disabled'}
+                </button>
+                <button 
+                  onClick={() => handleDeleteRule(rule._id)}
+                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           )) : (
             <p className="text-center text-sm text-gray-400 py-8">No deduction rules yet. Add one above.</p>
@@ -218,18 +404,6 @@ const AdminSettings = () => {
           )) : (
             <p className="text-center text-sm text-gray-400 py-8">No holidays added yet.</p>
           )}
-        </div>
-      </div>
-
-      {/* Notifications */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center text-sm"><Bell className="h-4 w-4 mr-2 text-gray-400" /> System Info</h3>
-        <div className="space-y-2 text-sm text-gray-600">
-          <p>• QR tokens are auto-generated at <strong>12:01 AM</strong> every day</p>
-          <p>• Employees are marked <strong>"Late"</strong> if they check in after <strong>9:15 AM</strong></p>
-          <p>• Working less than <strong>4 hours</strong> counts as a <strong>Half Day</strong></p>
-          <p>• Working more than <strong>9 hours</strong> earns <strong>Overtime</strong> pay (1.5x rate)</p>
-          <p>• Salary deductions are calculated based on the rules you configure above</p>
         </div>
       </div>
     </div>

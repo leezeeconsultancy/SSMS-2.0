@@ -9,7 +9,7 @@ import PayrollLeave from './pages/admin/PayrollLeave';
 import AttendanceRequests from './pages/admin/AttendanceRequests';
 import AdminSettings from './pages/admin/Settings';
 import EmployeeDashboard from './pages/employee/Dashboard';
-import QRScanner from './pages/employee/QRScanner';
+import Attendance from './pages/employee/Attendance';
 import LeaveRequests from './pages/employee/LeaveRequests';
 import EmployeeProfile from './pages/employee/Profile';
 import { AuthProvider } from './context/AuthContext';
@@ -35,7 +35,7 @@ const App = () => {
           {/* Employee Routes */}
           <Route path="/employee" element={<EmployeeLayout />}>
             <Route index element={<EmployeeDashboard />} />
-            <Route path="scan" element={<QRScanner />} />
+            <Route path="attendance" element={<Attendance />} />
             <Route path="leaves" element={<LeaveRequests />} />
             <Route path="profile" element={<EmployeeProfile />} />
           </Route>

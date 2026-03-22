@@ -16,7 +16,7 @@ export default defineConfig({
     host: '0.0.0.0', // Allow access from any device on the network (WiFi)
     proxy: {
       '/api': {
-        target: 'http://localhost:5001',
+        target: 'http://127.0.0.1:5001',
         changeOrigin: true,
       },
     },

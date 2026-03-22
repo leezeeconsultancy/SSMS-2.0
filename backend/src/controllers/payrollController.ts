@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { SalaryRule } from '../models/SalaryRule';
 import { Employee } from '../models/Employee';
 import { Attendance } from '../models/Attendance';
+import { SystemConfig } from '../models/SystemConfig';
 
 // Basic CRUD for Salary Rules
 export const createSalaryRule = async (req: AuthRequest, res: Response) => {
@@ -24,6 +25,29 @@ export const getSalaryRules = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message });
   }
 };
+
+export const deleteSalaryRule = async (req: AuthRequest, res: Response) => {
+    try {
+      await SalaryRule.findByIdAndDelete(req.params.id);
+      return res.json({ message: 'Rule deleted' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ message });
+    }
+  };
+  
+  export const toggleSalaryRule = async (req: AuthRequest, res: Response) => {
+    try {
+      const rule = await SalaryRule.findById(req.params.id);
+      if (!rule) return res.status(404).json({ message: 'Rule not found' });
+      rule.isActive = !rule.isActive;
+      await rule.save();
+      return res.json(rule);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ message });
+    }
+  };
 
 // Shared salary calculation logic
 const computeSalary = async (employeeId: string, month: number, year: number) => {
@@ -50,9 +74,12 @@ const computeSalary = async (employeeId: string, month: number, year: number) =>
     totalOvertimeHours += record.overTimeHours || 0;
   });
 
+  // Fetch dynamic config
+  const config = await SystemConfig.findOne() || await SystemConfig.create({});
+
   const baseSalary = employee.salary;
-  const perDaySalary = baseSalary / 30;
-  const workHoursPerDay = employee.workHoursPerDay || 9;
+  const perDaySalary = baseSalary / config.workingDaysPerMonth; // DYNAMIC instead of /30
+  const workHoursPerDay = employee.workHoursPerDay || config.defaultWorkHoursPerDay;
   let totalDeductions = 0;
   const deductionsBreakdown: any[] = [];
 
@@ -75,8 +102,8 @@ const computeSalary = async (employeeId: string, month: number, year: number) =>
     }
   });
 
-  const hourlyRate = baseSalary / (30 * workHoursPerDay);
-  const overtimePay = Math.round(totalOvertimeHours * (hourlyRate * 1.5));
+  const hourlyRate = baseSalary / (config.workingDaysPerMonth * workHoursPerDay);
+  const overtimePay = Math.round(totalOvertimeHours * (hourlyRate * config.overtimeMultiplier)); // DYNAMIC multiplier
   const finalSalary = Math.round((baseSalary + overtimePay) - totalDeductions);
 
   return {

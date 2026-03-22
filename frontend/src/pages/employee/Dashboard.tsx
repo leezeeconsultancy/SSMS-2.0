@@ -1,28 +1,32 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
-import { Clock, CalendarCheck, TrendingUp, AlertTriangle, IndianRupee, Briefcase } from 'lucide-react';
+import { 
+  Clock, CalendarCheck, TrendingUp, AlertTriangle, 
+  IndianRupee, Briefcase, History, CheckCircle2, 
+  CalendarDays, Info, ArrowRight
+} from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [attendance, setAttendance] = useState<any[]>([]);
-  const [payslip, setPayslip] = useState<any>(null);
+  const [payouts, setPayouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [profileRes, attendanceRes, payslipRes] = await Promise.allSettled([
+        const [profileRes, attendanceRes, payoutsRes] = await Promise.allSettled([
           axios.get('/api/employees/me'),
           axios.get('/api/attendance/me'),
-          axios.get('/api/payroll/my-payslip'),
+          axios.get('/api/payouts/my/history'),
         ]);
 
         if (profileRes.status === 'fulfilled') setProfile(profileRes.value.data);
         if (attendanceRes.status === 'fulfilled') setAttendance(attendanceRes.value.data);
-        if (payslipRes.status === 'fulfilled') setPayslip(payslipRes.value.data);
+        if (payoutsRes.status === 'fulfilled') setPayouts(payoutsRes.value.data);
       } catch (error) {
         toast.error('Could not load dashboard data');
       } finally {
@@ -34,115 +38,170 @@ const EmployeeDashboard = () => {
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-40 bg-gray-200 rounded-xl"></div>
-        <div className="grid grid-cols-2 gap-4"><div className="h-24 bg-gray-200 rounded-xl"></div><div className="h-24 bg-gray-200 rounded-xl"></div></div>
+      <div className="space-y-4 p-5 animate-pulse">
+        <div className="h-44 bg-slate-200/60 rounded-3xl" />
+        <div className="grid grid-cols-3 gap-3">
+          <div className="h-24 bg-slate-200/60 rounded-2xl" />
+          <div className="h-24 bg-slate-200/60 rounded-2xl" />
+          <div className="h-24 bg-slate-200/60 rounded-2xl" />
+        </div>
+        <div className="h-48 bg-slate-200/60 rounded-2xl" />
       </div>
     );
   }
 
-  const totalPresent = attendance.filter(a => a.status === 'Present' || a.status === 'Late').length;
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+  
+  const currentMonthPayout = payouts.find((p: any) => p.month === currentMonth && p.year === currentYear);
+  const currentStatus = currentMonthPayout?.status || 'Not Started';
+  const isPaidThisMonth = currentStatus === 'Paid';
+  
+  const salaryStatusConfig: Record<string, { label: string; badge: string; badgeBg: string; iconColor: string; circleBg: string }> = {
+    'Paid':        { label: "This Month's Salary",  badge: 'COMPLETED',     badgeBg: 'bg-emerald-500/90', iconColor: 'text-emerald-300', circleBg: 'bg-emerald-400/80' },
+    'Processing':  { label: 'Salary Processing',    badge: 'PROCESSING',    badgeBg: 'bg-blue-500/90',    iconColor: 'text-blue-300',    circleBg: 'bg-blue-400/80' },
+    'Pending':     { label: 'Salary Draft',          badge: 'DRAFT',         badgeBg: 'bg-amber-500/90',   iconColor: 'text-amber-300',   circleBg: 'bg-amber-400/80' },
+    'On Hold':     { label: 'Salary On Hold',        badge: 'ON HOLD',       badgeBg: 'bg-orange-500/90',  iconColor: 'text-orange-300',  circleBg: 'bg-orange-400/80' },
+    'Cancelled':   { label: 'Salary Cancelled',      badge: 'CANCELLED',     badgeBg: 'bg-red-500/90',     iconColor: 'text-red-300',     circleBg: 'bg-red-400/80' },
+    'Not Started': { label: 'Pending Salary',        badge: 'AWAITING',      badgeBg: 'bg-amber-500/80 animate-pulse', iconColor: 'text-amber-300', circleBg: 'bg-amber-400/80' },
+  };
+  const sc = salaryStatusConfig[currentStatus] || salaryStatusConfig['Not Started'];
+  
+  const expectedPayoutDay = profile?.defaultPayoutDay || 1;
+  const totalPresent = attendance.filter(a => ['Present', 'Late'].includes(a.status)).length;
   const totalLate = attendance.filter(a => a.status === 'Late').length;
   const totalHours = attendance.reduce((sum, a) => sum + (a.totalWorkingHours || 0), 0);
 
   return (
-    <div className="space-y-5">
-      <Toaster position="top-center" />
-      {/* Welcome Card */}
-      <div className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl p-5 text-white shadow-lg">
-        <h2 className="text-xl font-bold mb-0.5">Hello, {profile?.name || user?.name}!</h2>
-        <p className="text-primary-200 text-xs mb-5">{profile?.department} • {profile?.designation}</p>
+    <div className="space-y-5 p-4 max-w-lg mx-auto stagger-children">
+      <Toaster position="top-center" toastOptions={{ style: { borderRadius: '16px', fontWeight: 600, fontSize: '13px' } }} />
+      
+      {/* ═══ Premium Welcome Card ═══ */}
+      <div className="gradient-hero rounded-3xl p-6 text-white shadow-xl shadow-primary-900/20 relative overflow-hidden">
+        {/* Decorative orbs */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-2xl" />
+        <div className="absolute -bottom-20 -left-10 w-48 h-48 bg-primary-400/10 rounded-full blur-3xl" />
+        <div className="absolute top-3 right-4 opacity-[0.06]"><Briefcase className="h-24 w-24" /></div>
+        
+        <h2 className="text-2xl font-extrabold mb-0.5 relative">Hello, {profile?.name || user?.name}!</h2>
+        <p className="text-indigo-200 text-[10px] font-bold uppercase tracking-[0.15em] mb-6 opacity-80">{profile?.department} • {profile?.designation}</p>
 
-        <div className="flex items-center justify-between bg-white/10 rounded-xl p-3.5 backdrop-blur-sm border border-white/20">
-          <div>
-            <p className="text-[10px] text-primary-200 uppercase tracking-wider mb-0.5">This Month's Salary</p>
-            <div className="flex items-end space-x-1">
-              <IndianRupee className="h-5 w-5 text-emerald-300" />
-              <span className="text-2xl font-bold">{payslip ? payslip.finalSalary.toLocaleString() : '—'}</span>
-            </div>
-          </div>
-          <div className="h-10 w-10 rounded-full bg-emerald-400/20 flex items-center justify-center">
-            <TrendingUp className="h-5 w-5 text-emerald-300" />
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Stats Grid */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 text-center">
-          <CalendarCheck className="h-5 w-5 text-emerald-500 mx-auto mb-1.5" />
-          <span className="text-lg font-bold text-gray-900">{totalPresent}</span>
-          <span className="block text-[10px] text-gray-500 uppercase">Present</span>
-        </div>
-        <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 text-center">
-          <AlertTriangle className="h-5 w-5 text-amber-500 mx-auto mb-1.5" />
-          <span className="text-lg font-bold text-gray-900">{totalLate}</span>
-          <span className="block text-[10px] text-gray-500 uppercase">Late</span>
-        </div>
-        <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 text-center">
-          <Clock className="h-5 w-5 text-blue-500 mx-auto mb-1.5" />
-          <span className="text-lg font-bold text-gray-900">{totalHours.toFixed(0)}h</span>
-          <span className="block text-[10px] text-gray-500 uppercase">Hours</span>
-        </div>
-      </div>
-
-      {/* Payslip Breakdown */}
-      {payslip && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <h3 className="font-semibold text-gray-900 mb-3 flex items-center text-sm">
-            <Briefcase className="h-4 w-4 mr-2 text-primary-500" />
-            Payslip — {payslip.month}/{payslip.year}
-          </h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-gray-500">Base Salary</span><span className="font-medium text-gray-900">₹{payslip.baseSalary.toLocaleString()}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Overtime Pay</span><span className="font-medium text-emerald-600">+₹{payslip.overtimePay.toLocaleString()}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Deductions</span><span className="font-medium text-red-600">-₹{payslip.totalDeductions.toLocaleString()}</span></div>
-            <div className="border-t border-gray-100 pt-2 flex justify-between">
-              <span className="font-semibold text-gray-900">Net Pay</span>
-              <span className="font-bold text-primary-600 text-base">₹{payslip.finalSalary.toLocaleString()}</span>
-            </div>
-          </div>
-          {payslip.deductionsBreakdown.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-gray-50">
-              <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Deduction Details</p>
-              {payslip.deductionsBreakdown.map((d: any, i: number) => (
-                <div key={i} className="flex justify-between text-xs text-gray-600 py-0.5">
-                  <span>{d.ruleName} (×{d.count})</span>
-                  <span className="text-red-500">-₹{d.deductionAmount}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Recent Attendance */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <h3 className="font-semibold text-gray-900 mb-3 text-sm">Recent Attendance</h3>
-        <div className="space-y-2">
-          {attendance.length > 0 ? attendance.slice(0, 7).map((record, idx) => (
-            <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-              <div>
-                <p className="text-xs font-medium text-gray-800">{new Date(record.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
-                <p className="text-[10px] text-gray-400">
-                  {record.checkIn ? new Date(record.checkIn.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                  {' → '}
-                  {record.checkOut?.time ? new Date(record.checkOut.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'Pending'}
+        <div className="glass-dark rounded-2xl p-5 border border-white/10 relative">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+                <p className="text-[10px] text-indigo-200 font-extrabold uppercase tracking-[0.15em] mb-1.5">
+                    {sc.label}
                 </p>
+                <div className="flex items-center space-x-1">
+                    <IndianRupee className={`h-5 w-5 ${sc.iconColor}`} />
+                    <span className="text-3xl font-black tracking-tight">
+                        {currentMonthPayout ? currentMonthPayout.netSalary.toLocaleString() : 'PENDING'}
+                    </span>
+                </div>
+                {currentMonthPayout?.holdAmount > 0 && (
+                  <p className="text-[10px] text-orange-300 font-bold mt-1">₹{currentMonthPayout.holdAmount.toLocaleString()} held</p>
+                )}
+            </div>
+            <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg ${sc.circleBg} backdrop-blur-md`}>
+                {isPaidThisMonth ? <TrendingUp className="h-6 w-6 text-white" /> : <Clock className="h-6 w-6 text-white" />}
+            </div>
+          </div>
+          
+          <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+            <div className="flex items-center text-[10px] font-bold text-indigo-200">
+                <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
+                {isPaidThisMonth 
+                    ? `Paid on ${new Date(currentMonthPayout.payoutDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                    : `Expected Day: ${expectedPayoutDay} ${new Date().toLocaleDateString('en-IN', { month: 'short' })}`
+                }
+            </div>
+            <div className={`text-[9px] font-black px-2.5 py-0.5 rounded-full ${sc.badgeBg} backdrop-blur-sm`}>
+                {sc.badge}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ Stats Grid ═══ */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { icon: CalendarCheck, value: totalPresent, label: 'Present', color: 'emerald', bg: 'bg-emerald-50' },
+          { icon: AlertTriangle, value: totalLate, label: 'Late', color: 'amber', bg: 'bg-amber-50' },
+          { icon: Clock, value: `${totalHours.toFixed(0)}h`, label: 'Worked', color: 'blue', bg: 'bg-blue-50' },
+        ].map((stat, i) => {
+          const Icon = stat.icon;
+          return (
+            <div key={i} className="silk-card p-4 text-center flex flex-col items-center">
+              <div className={`${stat.bg} p-2 rounded-xl mb-2.5`}>
+                <Icon className={`h-5 w-5 text-${stat.color}-600`} />
               </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-medium text-gray-600">{record.totalWorkingHours ? `${record.totalWorkingHours}h` : '—'}</span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  record.status === 'Present' ? 'bg-emerald-100 text-emerald-700' :
-                  record.status === 'Late' ? 'bg-amber-100 text-amber-700' :
-                  record.status === 'Half Day' ? 'bg-orange-100 text-orange-700' :
-                  'bg-red-100 text-red-700'
-                }`}>{record.status}</span>
+              <span className="text-xl font-black text-slate-900 leading-none">{stat.value}</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1.5">{stat.label}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ═══ Payout History ═══ */}
+      <div className="silk-card p-5 overflow-hidden">
+        <h3 className="font-extrabold text-slate-900 mb-4 flex items-center text-xs uppercase tracking-[0.12em]">
+          <History className="h-4 w-4 mr-2 text-primary-500" />
+          Payout History
+        </h3>
+        <div className="space-y-3">
+          {payouts.length > 0 ? payouts.slice(0, 3).map((p, idx) => (
+            <div key={idx} className="flex items-center justify-between p-3.5 bg-slate-50/80 rounded-2xl border border-slate-100 hover:border-primary-200 transition-all duration-200 group">
+              <div className="flex items-center">
+                <div className="bg-white p-2.5 rounded-xl mr-3 shadow-sm border border-slate-100 group-hover:shadow-md transition-shadow duration-200">
+                  <IndianRupee className="h-4 w-4 text-primary-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">{new Date(p.year, p.month - 1).toLocaleDateString('default', { month: 'long', year: 'numeric' })}</p>
+                  <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Paid on {new Date(p.payoutDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-black text-primary-600">₹{p.netSalary.toLocaleString()}</p>
+                {p.holdAmount > 0 && (
+                  <p className="text-[9px] text-orange-500 font-bold">₹{p.holdAmount.toLocaleString()} held</p>
+                )}
+                <div className="flex items-center justify-end text-[8px] font-black uppercase mt-0.5">
+                    {(() => {
+                        const statusMap: Record<string, { color: string; label: string }> = {
+                            'Paid':       { color: 'text-emerald-600', label: 'Paid' },
+                            'Pending':    { color: 'text-amber-600',   label: 'Pending' },
+                            'Processing': { color: 'text-blue-600',    label: 'Processing' },
+                            'On Hold':    { color: 'text-orange-600',  label: 'On Hold' },
+                            'Cancelled':  { color: 'text-red-600',     label: 'Cancelled' },
+                        };
+                        const sm = statusMap[p.status] || statusMap['Pending'];
+                        return (
+                            <span className={`${sm.color} flex items-center`}>
+                                {p.status === 'Paid' ? <CheckCircle2 className="h-2.5 w-2.5 mr-1" /> : <Clock className="h-2.5 w-2.5 mr-1" />}
+                                {sm.label}
+                            </span>
+                        );
+                    })()}
+                </div>
               </div>
             </div>
           )) : (
-            <p className="text-center text-xs text-gray-400 py-4">No attendance records yet.</p>
+            <div className="text-center py-8">
+                <div className="bg-slate-100 rounded-full p-4 w-fit mx-auto mb-3">
+                  <Info className="h-6 w-6 text-slate-300" />
+                </div>
+                <p className="text-[11px] text-slate-400 font-semibold">No salary records yet</p>
+            </div>
           )}
+        </div>
+      </div>
+
+      {/* ═══ Info ═══ */}
+      <div className="bg-primary-50/60 rounded-2xl p-4 flex items-start border border-primary-100/80">
+        <Info className="h-4 w-4 text-primary-400 mt-0.5 mr-2.5 shrink-0" />
+        <div>
+            <p className="text-[10px] font-extrabold text-primary-700 uppercase tracking-tight">Financial Transparency</p>
+            <p className="text-[9px] text-primary-500 mt-0.5 leading-relaxed">Your net salary includes base pay, bonuses, and overtime, after any deduction rules applied by HR. Payout dates may vary per month.</p>
         </div>
       </div>
     </div>

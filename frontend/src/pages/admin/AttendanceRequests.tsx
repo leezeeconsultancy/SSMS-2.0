@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { MessageSquare, Check, X, Calendar, Loader2 } from 'lucide-react';
+import SilkTooltip from '../../components/Tooltip';
 import toast, { Toaster } from 'react-hot-toast';
 
 const AttendanceRequests = () => {
@@ -98,23 +99,25 @@ const AttendanceRequests = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {req.status === 'Pending' ? (
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleStatusUpdate(req._id, 'Approved')}
-                          disabled={processingId === req._id}
-                          className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-all"
-                          title="Approve"
-                        >
-                          {processingId === req._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                        </button>
-                        <button
-                          onClick={() => handleStatusUpdate(req._id, 'Rejected')}
-                          disabled={processingId === req._id}
-                          className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg transition-all"
-                          title="Reject"
-                        >
-                          {processingId === req._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                        </button>
+                      <div className="flex justify-end space-x-2">
+                        <SilkTooltip content="Approve Request" position="left">
+                          <button 
+                            onClick={() => handleStatusUpdate(req._id, 'Approved')} 
+                            disabled={processingId === req._id}
+                            className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors disabled:opacity-50"
+                          >
+                            {processingId === req._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                          </button>
+                        </SilkTooltip>
+                        <SilkTooltip content="Reject Request" position="left">
+                          <button 
+                            onClick={() => handleStatusUpdate(req._id, 'Rejected')} 
+                            disabled={processingId === req._id}
+                            className="p-1.5 bg-rose-100 text-rose-700 rounded-lg hover:bg-rose-200 transition-colors disabled:opacity-50"
+                          >
+                            {processingId === req._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                          </button>
+                        </SilkTooltip>
                       </div>
                     ) : (
                       <span className="text-xs text-gray-400 italic">No actions</span>

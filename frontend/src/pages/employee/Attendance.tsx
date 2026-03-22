@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Fingerprint, LogIn, LogOut as LogOutIcon, CheckCircle2, Clock, Loader2, DoorOpen, MessageSquare, AlertTriangle } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
-const QRScanner = () => {
+const Attendance = () => {
   const [loading, setLoading] = useState(false);
   const [leavingNow, setLeavingNow] = useState(false);
   const [todayStatus, setTodayStatus] = useState<'none' | 'checked_in' | 'checked_out'>('none');
@@ -16,6 +16,7 @@ const QRScanner = () => {
   const [requestReason, setRequestReason] = useState('');
   const [requestStatus, setRequestStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
   const [isLate, setIsLate] = useState(false);
+  const [config, setConfig] = useState<any>(null);
 
   // Live clock
   useEffect(() => {
@@ -23,30 +24,40 @@ const QRScanner = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Check today's status & requests on mount
   const fetchData = async () => {
     try {
-      // Check attendance status
-      const attRes = await axios.get('/api/attendance/me');
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const todayRec = attRes.data.find((r: any) => r.date?.slice(0, 10) === todayStr);
-      
-      if (todayRec) {
-        setTodayRecord(todayRec);
-        setTodayStatus(todayRec.checkOut?.time ? 'checked_out' : 'checked_in');
+      const [attRes, reqRes, configRes] = await Promise.allSettled([
+        axios.get('/api/attendance/me'),
+        axios.get('/api/attendance/requests'),
+        axios.get('/api/config'),
+      ]);
+
+      let fetchedConfig: any = { checkInEndHour: 13 };
+      if (configRes.status === 'fulfilled') {
+        fetchedConfig = configRes.value.data;
+        setConfig(fetchedConfig);
       }
 
-      // Check if current time is late (> 1 PM)
+      const todayStr = new Date().toISOString().slice(0, 10);
+      let todayRec = null;
+      if (attRes.status === 'fulfilled') {
+        todayRec = attRes.value.data.find((r: any) => r.date?.slice(0, 10) === todayStr);
+        if (todayRec) {
+          setTodayRecord(todayRec);
+          setTodayStatus(todayRec.checkOut?.time ? 'checked_out' : 'checked_in');
+        }
+      }
+
       const now = new Date();
-      if (now.getHours() >= 13 && !todayRec) {
+      if (now.getHours() >= fetchedConfig.checkInEndHour && !todayRec) {
         setIsLate(true);
       }
 
-      // Check for existing requests
-      const reqRes = await axios.get('/api/attendance/requests');
-      const myTodayReq = reqRes.data.find((r: any) => r.date === todayStr);
-      if (myTodayReq) {
-        setRequestStatus(myTodayReq.status.toLowerCase() as any);
+      if (reqRes.status === 'fulfilled') {
+        const myTodayReq = reqRes.value.data.find((r: any) => r.date === todayStr);
+        if (myTodayReq) {
+          setRequestStatus(myTodayReq.status.toLowerCase() as any);
+        }
       }
     } catch (error) {
       console.error('Fetch error:', error);
@@ -55,17 +66,12 @@ const QRScanner = () => {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  // 🔄 REAL-TIME POLLING: Check for admin approval every 5 seconds
   useEffect(() => {
     let interval: any;
     if (requestStatus === 'pending') {
-      interval = setInterval(() => {
-        fetchData();
-      }, 5000); // Check every 5 seconds
+      interval = setInterval(() => fetchData(), 5000);
     }
     return () => clearInterval(interval);
   }, [requestStatus]);
@@ -172,7 +178,6 @@ const QRScanner = () => {
     }
   };
 
-  // Calculate time since check-in
   const getTimeSinceCheckIn = () => {
     if (!todayRecord?.checkIn?.time) return null;
     const checkInTime = new Date(todayRecord.checkIn.time);
@@ -183,56 +188,74 @@ const QRScanner = () => {
     return `${hours}h ${mins}m ${secs}s`;
   };
 
+  const formatDeadline = () => {
+    const hour = config?.checkInEndHour || 13;
+    const h12 = hour > 12 ? hour - 12 : hour;
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    return `${h12}:00 ${ampm}`;
+  };
+
   if (fetchingStatus) {
-    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary-500" /></div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="flex flex-col items-center space-y-3">
+          <div className="h-10 w-10 rounded-full border-3 border-primary-200 border-t-primary-600 animate-spin" />
+          <p className="text-xs text-slate-400 font-medium">Loading attendance...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6 max-w-md mx-auto relative">
-      <Toaster position="top-center" />
+    <div className="space-y-5 max-w-md mx-auto p-4 relative stagger-children">
+      <Toaster position="top-center" toastOptions={{ style: { borderRadius: '16px', fontWeight: 600, fontSize: '13px' } }} />
 
-      {/* Status Header */}
-      <div className="text-center">
-        <div className={`inline-flex items-center justify-center h-20 w-20 rounded-full mb-4 ${
-          todayStatus === 'none' ? 'bg-gray-100' : todayStatus === 'checked_in' ? 'bg-emerald-100' : 'bg-blue-100'
+      {/* ═══ Status Header ═══ */}
+      <div className="text-center pt-4 animate-fade-in-up">
+        <div className={`inline-flex items-center justify-center h-20 w-20 rounded-3xl mb-5 shadow-lg transition-all duration-500 ${
+          todayStatus === 'none' ? 'bg-slate-100 shadow-slate-200/50' : 
+          todayStatus === 'checked_in' ? 'bg-emerald-100 shadow-emerald-200/50' : 
+          'bg-primary-100 shadow-primary-200/50'
         }`}>
-          {todayStatus === 'none' && <Fingerprint className="h-10 w-10 text-gray-400" />}
+          {todayStatus === 'none' && <Fingerprint className="h-10 w-10 text-slate-400" />}
           {todayStatus === 'checked_in' && <CheckCircle2 className="h-10 w-10 text-emerald-500" />}
-          {todayStatus === 'checked_out' && <Clock className="h-10 w-10 text-blue-500" />}
+          {todayStatus === 'checked_out' && <Clock className="h-10 w-10 text-primary-500" />}
         </div>
-        <h2 className="text-xl font-bold text-gray-900">
+        <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
           {todayStatus === 'none' && 'Mark Your Attendance'}
           {todayStatus === 'checked_in' && "You're Checked In!"}
           {todayStatus === 'checked_out' && 'Day Complete ✓'}
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-slate-400 mt-1.5 font-medium">
           {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
         {/* Live clock */}
-        <p className="text-lg font-mono font-bold text-primary-600 mt-2">
+        <p className="text-lg font-mono font-bold text-primary-600 mt-3 tracking-wider">
           {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
         </p>
       </div>
 
-      {/* Late Check-in Alert */}
+      {/* ═══ Late Check-in Alert ═══ */}
       {isLate && todayStatus === 'none' && requestStatus !== 'approved' && (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4">
+        <div className="silk-card border-rose-200 bg-rose-50/80 p-4 animate-scale-in">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-rose-500 flex-shrink-0 mt-0.5" />
+            <div className="bg-rose-100 p-2 rounded-xl shrink-0">
+              <AlertTriangle className="h-4 w-4 text-rose-500" />
+            </div>
             <div>
               <p className="text-sm font-bold text-rose-800">Check-in Window Closed</p>
-              <p className="text-xs text-rose-600 mt-1">You missed the 1:00 PM deadline. Please request Admin to enable your check-in.</p>
+              <p className="text-xs text-rose-600 mt-1">You missed the {formatDeadline()} deadline. Please request Admin to enable your check-in.</p>
               
               {requestStatus === 'none' ? (
                 <button 
                   onClick={() => setShowRequestModal(true)}
-                  className="mt-3 bg-rose-600 text-white text-xs font-bold px-4 py-2 rounded-lg"
+                  className="mt-3 silk-btn bg-rose-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm"
                 >
                   Request Late Check-in
                 </button>
               ) : requestStatus === 'pending' ? (
-                <div className="mt-3 inline-flex items-center px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-lg border border-amber-200">
-                  <Clock className="h-3 w-3 mr-1" /> Waiting for Admin Approval...
+                <div className="mt-3 inline-flex items-center px-3 py-1.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-xl border border-amber-200">
+                  <Clock className="h-3 w-3 mr-1.5 animate-spin" /> Waiting for Approval...
                 </div>
               ) : requestStatus === 'rejected' && (
                 <p className="mt-3 text-xs font-bold text-rose-700">❌ Request Rejected by Admin</p>
@@ -242,9 +265,9 @@ const QRScanner = () => {
         </div>
       )}
 
-      {/* Admin Approved Message */}
+      {/* ═══ Admin Approved ═══ */}
       {requestStatus === 'approved' && todayStatus === 'none' && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+        <div className="silk-card border-emerald-200 bg-emerald-50/80 p-4 animate-scale-in">
           <p className="text-sm font-bold text-emerald-800 flex items-center">
             <CheckCircle2 className="h-4 w-4 mr-2" /> Late Check-in Approved!
           </p>
@@ -252,61 +275,63 @@ const QRScanner = () => {
         </div>
       )}
 
-      {/* Live timer when checked in */}
+      {/* ═══ Live Timer ═══ */}
       {todayStatus === 'checked_in' && getTimeSinceCheckIn() && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
-          <p className="text-[10px] uppercase tracking-wider text-emerald-600 font-medium">Working Time</p>
-          <p className="text-2xl font-bold font-mono text-emerald-700 mt-1">{getTimeSinceCheckIn()}</p>
+        <div className="silk-card border-emerald-200 bg-emerald-50/50 p-5 text-center animate-scale-in">
+          <p className="text-[10px] uppercase tracking-[0.15em] text-emerald-500 font-bold">Working Time</p>
+          <p className="text-3xl font-black font-mono text-emerald-700 mt-1.5 tracking-wider">{getTimeSinceCheckIn()}</p>
         </div>
       )}
 
-      {/* Today's Record Card */}
+      {/* ═══ Today's Record ═══ */}
       {todayRecord && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="silk-card p-5 animate-slide-up">
           <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-3 bg-emerald-50 rounded-xl">
-              <LogIn className="h-5 w-5 text-emerald-600 mx-auto mb-1" />
-              <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-0.5">Check In</p>
-              <p className="text-sm font-bold text-gray-900">
+            <div className="text-center p-4 bg-emerald-50/60 rounded-2xl border border-emerald-100/60">
+              <LogIn className="h-5 w-5 text-emerald-500 mx-auto mb-1.5" />
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Check In</p>
+              <p className="text-sm font-bold text-slate-900">
                 {todayRecord.checkIn ? new Date(todayRecord.checkIn.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
               </p>
             </div>
-            <div className="text-center p-3 bg-blue-50 rounded-xl">
-              <LogOutIcon className="h-5 w-5 text-blue-600 mx-auto mb-1" />
-              <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-0.5">Check Out</p>
-              <p className="text-sm font-bold text-gray-900">
+            <div className="text-center p-4 bg-primary-50/60 rounded-2xl border border-primary-100/60">
+              <LogOutIcon className="h-5 w-5 text-primary-500 mx-auto mb-1.5" />
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Check Out</p>
+              <p className="text-sm font-bold text-slate-900">
                 {todayRecord.checkOut?.time ? new Date(todayRecord.checkOut.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
               </p>
             </div>
           </div>
           {todayRecord.totalWorkingHours > 0 && (
-            <div className="mt-3 pt-3 border-t border-gray-100 text-center">
-              <span className="text-xs text-gray-500">Total Hours: </span>
+            <div className="mt-4 pt-3 border-t border-slate-100 text-center">
+              <span className="text-xs text-slate-400 font-medium">Total Hours: </span>
               <span className="text-sm font-bold text-primary-600">{todayRecord.totalWorkingHours}h</span>
               {todayRecord.overTimeHours > 0 && (
-                <span className="text-xs text-emerald-600 ml-2">(+{todayRecord.overTimeHours}h overtime)</span>
+                <span className="text-xs text-emerald-600 ml-2 font-semibold">(+{todayRecord.overTimeHours}h overtime)</span>
               )}
             </div>
           )}
-          <div className="mt-2 text-center">
+          <div className="mt-3 text-center">
             <span className={`text-[10px] font-bold px-3 py-1 rounded-full ${
               todayRecord.status === 'Present' ? 'bg-emerald-100 text-emerald-700' :
               todayRecord.status === 'Late' ? 'bg-amber-100 text-amber-700' :
               todayRecord.status === 'Half Day' ? 'bg-orange-100 text-orange-700' :
-              'bg-gray-100 text-gray-700'
+              'bg-slate-100 text-slate-700'
             }`}>{todayRecord.status}</span>
           </div>
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="space-y-3">
+      {/* ═══ Action Buttons ═══ */}
+      <div className="space-y-3 pb-2">
         {todayStatus === 'none' && (
           <button
             onClick={handleCheckIn}
             disabled={loading || (isLate && requestStatus !== 'approved')}
-            className={`w-full font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center disabled:opacity-50 text-base ${
-              isLate && requestStatus !== 'approved' ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/30'
+            className={`w-full silk-btn font-extrabold py-4.5 rounded-2xl shadow-xl transition-all flex items-center justify-center text-base tracking-tight ${
+              isLate && requestStatus !== 'approved' 
+                ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' 
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/25'
             }`}
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Fingerprint className="h-5 w-5 mr-2" />}
@@ -319,7 +344,7 @@ const QRScanner = () => {
             <button
               onClick={handleCheckOut}
               disabled={loading || leavingNow}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98] flex items-center justify-center disabled:opacity-60 text-base"
+              className="w-full silk-btn bg-primary-600 hover:bg-primary-700 text-white font-extrabold py-4.5 rounded-2xl shadow-xl shadow-primary-500/25 transition-all flex items-center justify-center disabled:opacity-60 text-base tracking-tight"
             >
               {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <LogOutIcon className="h-5 w-5 mr-2" />}
               {loading ? 'Processing...' : 'Check Out — End Day'}
@@ -328,7 +353,7 @@ const QRScanner = () => {
             <button
               onClick={handleLeaveNow}
               disabled={loading || leavingNow}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-2xl shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] flex items-center justify-center disabled:opacity-60 text-sm"
+              className="w-full silk-btn bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center disabled:opacity-60 text-sm"
             >
               {leavingNow ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <DoorOpen className="h-4 w-4 mr-2" />}
               {leavingNow ? 'Recording...' : 'Leave Now — Early Exit'}
@@ -337,41 +362,43 @@ const QRScanner = () => {
         )}
 
         {todayStatus === 'checked_out' && (
-          <div className="text-center py-4 bg-blue-50 rounded-2xl border border-blue-100">
-            <CheckCircle2 className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-            <p className="text-sm font-medium text-blue-700">You're all done for today!</p>
+          <div className="text-center py-6 bg-primary-50/60 rounded-2xl border border-primary-100/60 animate-scale-in">
+            <CheckCircle2 className="h-8 w-8 text-primary-500 mx-auto mb-2.5" />
+            <p className="text-sm font-semibold text-primary-700">You're all done for today!</p>
           </div>
         )}
       </div>
 
-      {/* REQUEST MODAL */}
+      {/* ═══ REQUEST MODAL ═══ */}
       {showRequestModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-            <div className="flex items-center gap-2 mb-4">
-              <MessageSquare className="h-5 w-5 text-primary-500" />
-              <h3 className="text-lg font-bold text-gray-900">Late Check-in Request</h3>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-slide-up">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="bg-primary-100 p-2 rounded-xl">
+                <MessageSquare className="h-5 w-5 text-primary-600" />
+              </div>
+              <h3 className="text-lg font-extrabold text-slate-900">Late Check-in Request</h3>
             </div>
-            <p className="text-xs text-gray-500 mb-4">Explain why you are checking in after the 1:00 PM deadline. Admin will review your request.</p>
+            <p className="text-xs text-slate-400 mb-5 font-medium">Explain why you are checking in after the {formatDeadline()} deadline.</p>
             
             <textarea
-              className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none h-32 resize-none"
+              className="w-full p-4 border-2 border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-400 outline-none h-32 resize-none transition-all silk-input"
               placeholder="Enter reason here..."
               value={requestReason}
               onChange={(e) => setRequestReason(e.target.value)}
             />
             
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 mt-5">
               <button 
                 onClick={() => setShowRequestModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl text-sm"
+                className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 font-bold rounded-2xl text-sm hover:bg-slate-200 transition-colors"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleSubmitRequest}
                 disabled={loading}
-                className="flex-1 px-4 py-2 bg-primary-600 text-white font-bold rounded-xl text-sm flex items-center justify-center"
+                className="flex-1 silk-btn px-4 py-3 bg-primary-600 text-white font-bold rounded-2xl text-sm flex items-center justify-center hover:bg-primary-700 transition-colors"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit'}
               </button>
@@ -383,4 +410,4 @@ const QRScanner = () => {
   );
 };
 
-export default QRScanner;
+export default Attendance;

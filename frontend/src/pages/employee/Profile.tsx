@@ -22,11 +22,23 @@ const EmployeeProfile = () => {
   }, []);
 
   if (loading) {
-    return <div className="animate-pulse space-y-4"><div className="h-40 bg-gray-200 rounded-xl"></div><div className="h-64 bg-gray-200 rounded-xl"></div></div>;
+    return (
+      <div className="space-y-4 max-w-md mx-auto p-4 animate-pulse">
+        <div className="h-44 bg-slate-200/60 rounded-3xl" />
+        <div className="h-80 bg-slate-200/60 rounded-3xl" />
+      </div>
+    );
   }
 
   if (!profile) {
-    return <div className="text-center py-16 text-gray-500">Profile not found. Contact your admin.</div>;
+    return (
+      <div className="text-center py-16 text-slate-400 font-medium">
+        <div className="bg-slate-100 rounded-full p-4 w-fit mx-auto mb-3">
+          <Shield className="h-8 w-8 text-slate-300" />
+        </div>
+        Profile not found. Contact your admin.
+      </div>
+    );
   }
 
   const fields = [
@@ -34,45 +46,49 @@ const EmployeeProfile = () => {
     { icon: Phone, label: 'Phone', value: profile.phone },
     { icon: Briefcase, label: 'Designation', value: profile.designation },
     { icon: Building, label: 'Department', value: profile.department },
-    { icon: Clock, label: 'Work Hours / Day', value: `${profile.workHoursPerDay || 9} hours` },
+    { icon: Clock, label: 'Work Hours / Day', value: `${profile.workHoursPerDay} hours` },
     { icon: Calendar, label: 'Joining Date', value: new Date(profile.joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) },
     { icon: IndianRupee, label: 'Monthly Salary', value: `₹${profile.salary?.toLocaleString()}` },
+    { icon: Calendar, label: 'Leave Balance', value: `${profile.leaveBalance ?? 0} days remaining` },
     { icon: Shield, label: 'Status', value: profile.status },
   ];
 
   return (
-    <div className="space-y-5 max-w-md mx-auto">
-      <Toaster position="top-center" />
+    <div className="space-y-5 max-w-md mx-auto p-4 stagger-children">
+      <Toaster position="top-center" toastOptions={{ style: { borderRadius: '16px', fontWeight: 600, fontSize: '13px' } }} />
 
       {/* Profile Header */}
-      <div className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl p-6 text-white text-center shadow-lg">
-        <div className="h-20 w-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center mx-auto mb-3 border-2 border-white/30">
-          <span className="text-3xl font-bold">{profile.name?.charAt(0)?.toUpperCase()}</span>
+      <div className="gradient-hero rounded-3xl p-7 text-white text-center shadow-xl shadow-primary-900/20 relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-2xl" />
+        <div className="absolute -bottom-16 -left-8 w-44 h-44 bg-primary-400/10 rounded-full blur-3xl" />
+        
+        <div className="h-20 w-20 rounded-3xl glass-dark flex items-center justify-center mx-auto mb-4 border border-white/20 shadow-lg relative">
+          <span className="text-3xl font-black">{profile.name?.charAt(0)?.toUpperCase()}</span>
         </div>
-        <h2 className="text-xl font-bold">{profile.name}</h2>
-        <p className="text-primary-200 text-sm mt-0.5">{profile.employeeId}</p>
-        <p className="text-primary-300 text-xs mt-1">{profile.designation} • {profile.department}</p>
+        <h2 className="text-xl font-extrabold tracking-tight">{profile.name}</h2>
+        <p className="text-indigo-200 text-sm mt-0.5 font-semibold">{profile.employeeId}</p>
+        <p className="text-indigo-300/70 text-xs mt-1 font-medium">{profile.designation} • {profile.department}</p>
       </div>
 
       {/* Details Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-50">
+      <div className="silk-card overflow-hidden divide-y divide-slate-100/80">
         {fields.map((field, i) => {
           const Icon = field.icon;
           return (
-            <div key={i} className="flex items-center px-5 py-4">
-              <div className="h-9 w-9 rounded-lg bg-gray-50 flex items-center justify-center mr-4 shrink-0">
-                <Icon className="h-4 w-4 text-gray-400" />
+            <div key={i} className="flex items-center px-5 py-4 group hover:bg-slate-50/50 transition-colors duration-200">
+              <div className="h-9 w-9 rounded-xl bg-slate-50 flex items-center justify-center mr-4 shrink-0 group-hover:bg-primary-50 transition-colors duration-200">
+                <Icon className="h-4 w-4 text-slate-400 group-hover:text-primary-500 transition-colors duration-200" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">{field.label}</p>
-                <p className="text-sm font-medium text-gray-900 truncate">{field.value}</p>
+                <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400 font-semibold">{field.label}</p>
+                <p className="text-sm font-semibold text-slate-900 truncate">{field.value}</p>
               </div>
             </div>
           );
         })}
       </div>
 
-      <p className="text-center text-[10px] text-gray-400 px-8">
+      <p className="text-center text-[10px] text-slate-400 px-8 font-medium">
         To update your personal information, contact your HR administrator.
       </p>
     </div>

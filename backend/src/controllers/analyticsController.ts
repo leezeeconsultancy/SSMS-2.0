@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { Employee } from '../models/Employee';
 import { Attendance } from '../models/Attendance';
+import { SystemConfig } from '../models/SystemConfig';
 
 export const getLeaderboard = async (req: AuthRequest, res: Response) => {
   try {
@@ -32,9 +33,10 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
         totalWorkHours += r.totalWorkingHours || 0;
       });
 
+      const config = await SystemConfig.findOne() || await SystemConfig.create({});
       const attendanceScore = (presentDays / totalWorkingDays) * 40;
       const punctualityScore = presentDays > 0 ? ((presentDays - lateDays) / presentDays) * 30 : 0;
-      const expectedHours = totalWorkingDays * (emp.workHoursPerDay || 9);
+      const expectedHours = totalWorkingDays * (emp.workHoursPerDay || config.defaultWorkHoursPerDay);
       const workHourRatio = totalWorkHours / expectedHours;
       const workHourScore = (workHourRatio > 1 ? 1 : workHourRatio) * 30;
       const totalScore = Math.round(attendanceScore + punctualityScore + workHourScore);

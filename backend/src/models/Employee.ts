@@ -15,6 +15,8 @@ export interface IEmployee extends Document {
   status: 'Active' | 'Suspended';
   managerId?: mongoose.Types.ObjectId; // Link to Manager (Employee)
   qrCodeData?: string; // Stored unique QR identifier
+  defaultPayoutDay?: number; // e.g., 5 for 5th of every month
+  leaveBalance: number;      // Annual leave quota remaining
 }
 
 const employeeSchema = new Schema<IEmployee>(
@@ -36,6 +38,8 @@ const employeeSchema = new Schema<IEmployee>(
     },
     managerId: { type: Schema.Types.ObjectId, ref: 'Employee' },
     qrCodeData: { type: String, unique: true, sparse: true },
+    defaultPayoutDay: { type: Number, default: 1 }, // Default to 1st of the month
+    leaveBalance: { type: Number, default: 18 },     // Annual leave days
   },
   { timestamps: true }
 );

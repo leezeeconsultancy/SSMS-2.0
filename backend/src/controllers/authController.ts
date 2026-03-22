@@ -11,11 +11,24 @@ const generateToken = (id: string): string => {
   });
 };
 
+import fs from 'fs';
+
+const logDebug = (data: any) => {
+  const logPath = 'c:\\Users\\OM\\.gemini\\antigravity\\playground\\galactic-lagoon\\backend\\login_debug.log';
+  try {
+    const timestamp = new Date().toISOString();
+    const content = `${timestamp}: ${JSON.stringify(data)}\n`;
+    fs.appendFileSync(logPath, content);
+  } catch (e) {}
+};
+
 export const loginUser = async (req: Request, res: Response) => {
   const { email, password, deviceId } = req.body;
+  logDebug({ email, deviceId, passwordLength: password?.length });
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase() });
+    logDebug({ foundUser: !!user });
 
     if (user && user.password && (await bcrypt.compare(password, user.password))) {
       if (user.status === 'Suspended') {

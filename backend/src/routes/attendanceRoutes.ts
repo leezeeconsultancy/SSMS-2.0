@@ -3,7 +3,7 @@ import {
   checkIn, checkOut, getMyAttendance, getAllAttendance, 
   generateDailyQRs, getMyDailyQR,
   requestLateCheckIn, getAttendanceRequests, updateRequestStatus,
-  checkLocation, getOfficeLocations, setOfficeLocation
+  checkLocation, getOfficeLocations, setOfficeLocation, updateAttendanceRecord
 } from '../controllers/attendanceController';
 import { protect, authorize } from '../middleware/authMiddleware';
 
@@ -32,8 +32,9 @@ router.post('/check-in', protect, checkIn);
 router.post('/check-out', protect, checkOut);
 router.get('/me', protect, getMyAttendance);
 
-// Admin: View all attendance
+// Admin: View and update all attendance
 router.get('/', protect, authorize('Admin', 'Manager', 'Super Admin'), getAllAttendance);
+router.patch('/:id', protect, authorize('Admin', 'Super Admin'), updateAttendanceRecord);
 
 export default router;
 

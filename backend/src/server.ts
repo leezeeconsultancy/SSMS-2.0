@@ -16,33 +16,30 @@ connectDB().then(() => {
 const app = express();
 
 // Middleware
-app.use(helmet());
+if (process.env.NODE_ENV !== 'production') {
+  // Disable strict security headers in dev to prevent mobile access blocks
+  // app.use(helmet()); 
+} else {
+  app.use(helmet());
+}
+
 app.use(cors({
   origin: function(origin, callback) {
-    // List of allowed origins
+    // In development, echo back whatever origin is requesting (crucial for mobile IP access)
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
     const allowedOrigins = [
       'http://localhost:5173',
-      'http://localhost:5174', // Allow multiple local dev ports
+      'http://localhost:5174',
       process.env.FRONTEND_URL,
     ].filter(Boolean);
 
-    // Allow requests with no origin (like mobile apps)
-    if (!origin) return callback(null, true);
-
-    // Check if origin is allowed
-    const isAllowed = allowedOrigins.some(url => {
-      if (!url) return false;
-      // Remove trailing slash for comparison
-      const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-      return origin === cleanUrl;
-    });
-
-    if (isAllowed) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      // In development, we can still allow everything if needed, 
-      // but for security it's best to be explicit
-      callback(null, true); 
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
@@ -58,6 +55,8 @@ import leaveRoutes from './routes/leaveRoutes';
 import payrollRoutes from './routes/payrollRoutes';
 import analyticsRoutes from './routes/analyticsRoutes';
 import holidayRoutes from './routes/holidayRoutes';
+import payoutRoutes from './routes/payoutRoutes';
+import configRoutes from './routes/configRoutes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
@@ -66,6 +65,8 @@ app.use('/api/leaves', leaveRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/holidays', holidayRoutes);
+app.use('/api/payouts', payoutRoutes);
+app.use('/api/config', configRoutes);
 
 // Basic Route for testing
 app.get('/api/health', (req: Request, res: Response) => {

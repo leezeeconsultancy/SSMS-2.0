@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { Employee } from '../models/Employee';
 import { User } from '../models/User';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { Payout } from '../models/Payout';
 
 export const createEmployee = async (req: AuthRequest, res: Response) => {
   const { employeeId, name, phone, email, department, designation, salary, joiningDate, role, password } = req.body;
@@ -33,6 +34,7 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
       designation,
       salary,
       joiningDate,
+      defaultPayoutDay: req.body.defaultPayoutDay || 1,
     });
 
     return res.status(201).json(employee);
@@ -42,10 +44,30 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
   }
 };
 
+
 export const getEmployees = async (req: AuthRequest, res: Response) => {
   try {
     const employees = await Employee.find({}).populate('userId', 'role status');
-    return res.json(employees);
+    
+    // Data-driven insight: Check payout status for current month
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    const currentPayouts = await Payout.find({
+      month: currentMonth,
+      year: currentYear
+    });
+
+    const employeesWithStatus = employees.map(emp => {
+      const payout = currentPayouts.find(p => p.employeeId.toString() === emp._id.toString());
+      return {
+        ...emp.toObject(),
+        payrollStatus: payout ? payout.status : 'Pending'
+      };
+    });
+
+    return res.json(employeesWithStatus);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return res.status(500).json({ message: errorMessage });

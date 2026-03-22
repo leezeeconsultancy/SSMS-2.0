@@ -6,6 +6,7 @@ import { Holiday } from '../models/Holiday';
 import { DailyQR, generateDailyToken } from '../models/DailyQR';
 import { AttendanceRequest } from '../models/AttendanceRequest';
 import { OfficeLocation } from '../models/OfficeLocation';
+import { SystemConfig } from '../models/SystemConfig';
 
 // ═══════════════════════════════════════════════════════════
 //  VALIDATION CONFIG — Anti-Manipulation Rules
@@ -296,9 +297,12 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Determine Status (server time only)
+    // Fetch dynamic config for late threshold
+    const config = await SystemConfig.findOne() || await SystemConfig.create({});
+
+    // Determine Status (server time only) — DYNAMIC threshold
     let status: string = 'Present';
-    if (currentHour > 9 || (currentHour === 9 && currentMinute > 15)) {
+    if (currentHour > config.lateThresholdHour || (currentHour === config.lateThresholdHour && currentMinute > config.lateThresholdMinute)) {
       status = 'Late';
     }
 
@@ -447,14 +451,15 @@ export const checkOut = async (req: AuthRequest, res: Response) => {
       finalStatus = 'Half Day';
     }
 
-    // Calculate overtime with cap
+    // Calculate overtime with cap (DYNAMIC from config)
+    const config = await SystemConfig.findOne() || await SystemConfig.create({});
     let overtimeHours = 0;
     if (validatedHours > requiredHours) {
       overtimeHours = parseFloat((validatedHours - requiredHours).toFixed(2));
-      // Cap overtime
-      if (overtimeHours > VALIDATION_RULES.MAX_OVERTIME_HOURS) {
+      // Cap overtime — dynamic value
+      if (overtimeHours > config.maxOvertimeHoursPerDay) {
         flags.push(`OVERTIME_CAPPED_FROM_${overtimeHours}H`);
-        overtimeHours = VALIDATION_RULES.MAX_OVERTIME_HOURS;
+        overtimeHours = config.maxOvertimeHoursPerDay;
       }
     }
 
@@ -584,5 +589,54 @@ export const setOfficeLocation = async (req: AuthRequest, res: Response) => {
     return res.status(201).json({ message: 'Office location saved successfully', location });
   } catch (error: any) {
     return res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateAttendanceRecord = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { checkInTime, checkOutTime, status, adminNote } = req.body;
+
+    const record = await Attendance.findById(id).populate('employeeId');
+    if (!record) return res.status(404).json({ message: 'Record not found' });
+
+    const employee = record.employeeId as any;
+    const requiredHours = employee.workHoursPerDay || 9;
+
+    if (checkInTime) record.checkIn.time = new Date(checkInTime);
+    if (checkOutTime) {
+      if (!record.checkOut) {
+        record.checkOut = { 
+          time: new Date(checkOutTime), 
+          location: { latitude: 0, longitude: 0 },
+          deviceType: 'Admin Override'
+        };
+      } else {
+        record.checkOut.time = new Date(checkOutTime);
+      }
+    }
+    if (status) record.status = status;
+    
+    // Recalculate hours
+    if (record.checkIn.time && record.checkOut?.time) {
+        const diffTime = Math.abs(record.checkOut.time.getTime() - record.checkIn.time.getTime());
+        const totalHours = diffTime / (1000 * 60 * 60);
+        record.totalWorkingHours = parseFloat(totalHours.toFixed(2));
+        
+        if (record.totalWorkingHours > requiredHours) {
+            record.overTimeHours = parseFloat((record.totalWorkingHours - requiredHours).toFixed(2));
+        } else {
+            record.overTimeHours = 0;
+        }
+    }
+
+    if (adminNote) {
+        record.flags = [...(record.flags || []), `ADMIN_MODIFIED: ${adminNote}`];
+    }
+
+    await record.save();
+    return res.json({ message: 'Attendance record updated manually', record });
+  } catch (error: any) {
+    return res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error' });
   }
 };
