@@ -104,12 +104,16 @@ if (process.env.NODE_ENV === 'production') {
   console.log('------------------------------------------------------------');
 }
 
-// Only listen when running locally
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-    console.log(`📱 Mobile access: http://192.168.0.104:${PORT}`);
-  });
-}
+// Start server (Supports Local, Render, and Vercel)
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`------------------------------------------------------------`);
+  console.log(`🚀 SSMS Server running on port ${PORT}`);
+  console.log(`✨ Mode: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📅 Started: ${new Date().toLocaleString()}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`📱 Local access: http://localhost:${PORT}`);
+  }
+  console.log(`------------------------------------------------------------`);
+});
 
 export default app;
