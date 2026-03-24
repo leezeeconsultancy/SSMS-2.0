@@ -15,13 +15,9 @@ const seedAdminUser = async () => {
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@ssms.com';
     const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
 
-    console.log('Checking for existing Admin users...');
-    const adminExists = await User.findOne({ email: adminEmail });
-
-    if (adminExists) {
-      console.log('Admin user already exists. Initializing skipped.');
-      process.exit();
-    }
+    console.log('Clearing existing Admin users...');
+    await User.deleteMany({ role: 'Super Admin' });
+    await Employee.deleteMany({ designation: 'System Owner' });
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(adminPassword, salt);
