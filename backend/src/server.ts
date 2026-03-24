@@ -75,6 +75,7 @@ app.use(cors({
     const allowedOrigins = [
       'http://localhost:5173',
       'http://localhost:5174',
+      'https://ssms-2-0.vercel.app',
       process.env.FRONTEND_URL,
     ].filter(Boolean);
 
