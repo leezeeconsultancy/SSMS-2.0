@@ -6,7 +6,7 @@ import {
   IndianRupee, Briefcase, History, CheckCircle2, 
   CalendarDays, Info
 } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
@@ -74,7 +74,6 @@ const EmployeeDashboard = () => {
 
   return (
     <div className="space-y-5 p-4 max-w-lg mx-auto stagger-children">
-      <Toaster position="top-center" toastOptions={{ style: { borderRadius: '16px', fontWeight: 600, fontSize: '13px' } }} />
       
       {/* ═══ Premium Welcome Card ═══ */}
       <div className="gradient-hero rounded-3xl p-6 text-white shadow-xl shadow-primary-900/20 relative overflow-hidden">

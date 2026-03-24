@@ -5,7 +5,7 @@ import {
   Loader2, Info, RefreshCw, Clock, Shield, CalendarDays
 } from 'lucide-react';
 import Tooltip from '../../components/Tooltip';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const AdminSettings = () => {
   const [rules, setRules] = useState<any[]>([]);
@@ -175,7 +175,6 @@ const AdminSettings = () => {
 
   return (
     <div className="space-y-6">
-      <Toaster position="top-right" />
       <h2 className="text-2xl font-bold text-gray-900 flex items-center">
         <SettingsIcon className="mr-2 h-6 w-6 text-primary-500" />
         System Settings
