@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
 
 /**
  * Connects to MongoDB with detailed deployment logging.
@@ -6,6 +7,13 @@ import mongoose from 'mongoose';
  * Never throws — all errors are caught and logged.
  */
 export const connectDB = async (): Promise<boolean> => {
+  // 🌐 DNS OVERRIDE — Force reliable DNS for MongoDB SRV resolution
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  } catch (dnsErr: unknown) {
+    console.warn('[DB] ⚠️ Failed to set DNS servers (non-fatal):', dnsErr instanceof Error ? dnsErr.message : dnsErr);
+  }
+
   const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ssms';
   
   // Log connection attempt (mask password for security)

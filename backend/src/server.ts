@@ -4,22 +4,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
-import dns from 'dns';
 import { connectDB } from './config/db';
 import { startDailyQRCron } from './cron/dailyQRCron';
 import { checkDBConnection } from './middleware/dbCheck';
 
 dotenv.config();
-
-// ============================================================
-// 🌐 DNS OVERRIDE — Force reliable DNS for MongoDB SRV resolution
-// ============================================================
-console.log('[BOOT] Setting reliable DNS servers (8.8.8.8, 1.1.1.1)...');
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch (dnsErr: unknown) {
-  console.warn('[BOOT] ⚠️ Failed to set DNS servers (non-fatal):', dnsErr instanceof Error ? dnsErr.message : dnsErr);
-}
 
 // ============================================================
 // 🛡️ GLOBAL ERROR HANDLERS — Catch crashes before they kill the process
