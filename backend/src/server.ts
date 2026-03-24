@@ -66,12 +66,12 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     // In development, echo back whatever origin is requesting (crucial for mobile IP access)
     if (process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
-    
+
     const allowedOrigins = [
       'http://localhost:5173',
       'http://localhost:5174',
@@ -94,8 +94,8 @@ app.use(cookieParser());
 // Basic Route for health check (Allowed without DB)
 app.get('/api/health', (req: Request, res: Response) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
-  res.status(200).json({ 
-    status: 'API is running', 
+  res.status(200).json({
+    status: 'API is running',
     database: dbStatus,
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
@@ -195,9 +195,9 @@ const PORT = Number(process.env.PORT) || 5001;
 // ============================================================
 const startServer = async () => {
   console.log('[BOOT] Connecting to MongoDB...');
-  
+
   const dbConnected = await connectDB();
-  
+
   if (dbConnected) {
     console.log('[BOOT] ✅ MongoDB connected successfully');
     // Start cron jobs only after DB is connected
