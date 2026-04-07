@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { connectDB } from './config/db';
 import { startDailyQRCron } from './cron/dailyQRCron';
+import { initWarmupCron } from './cron/warmupCron';
 import { checkDBConnection } from './middleware/dbCheck';
 
 dotenv.config();
@@ -211,6 +212,7 @@ const startServer = async () => {
     // Start cron jobs only after DB is connected
     try {
       startDailyQRCron();
+      initWarmupCron();
       console.log('[BOOT] ✅ Cron jobs started');
     } catch (cronError: unknown) {
       console.error('[BOOT] ⚠️ Cron job startup failed (non-fatal):', cronError instanceof Error ? cronError.message : cronError);

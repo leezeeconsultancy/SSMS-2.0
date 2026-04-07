@@ -10,6 +10,9 @@ export interface IEmployee extends Document {
   designation: string;
   salary: number;
   workHoursPerDay: number; // Configurable per employee (default 9)
+  shiftStartTime?: string; // e.g. "08:00"
+  shiftEndTime?: string;   // e.g. "17:00"
+  assignedLocation?: mongoose.Types.ObjectId; // Ref to OfficeLocation
   salaryStructureId?: mongoose.Types.ObjectId;
   joiningDate: Date;
   status: 'Active' | 'Suspended';
@@ -30,6 +33,9 @@ const employeeSchema = new Schema<IEmployee>(
     designation: { type: String, required: true },
     salary: { type: Number, required: true },
     workHoursPerDay: { type: Number, default: 9 },
+    shiftStartTime: { type: String, default: "09:00" },
+    shiftEndTime: { type: String, default: "18:00" },
+    assignedLocation: { type: Schema.Types.ObjectId, ref: 'OfficeLocation' },
     joiningDate: { type: Date, required: true },
     status: {
       type: String,

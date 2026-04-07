@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Search, Edit2, Trash2, Mail, Phone, X, Loader2, CheckCircle, Clock, AlertTriangle, Ban, RefreshCw, Info } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Mail, Phone, X, Loader2, CheckCircle, Clock, AlertTriangle, Ban, RefreshCw, MapPin } from 'lucide-react';
 import Tooltip from '../../components/Tooltip';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -15,6 +15,9 @@ interface EmployeeType {
   salary: number;
   joiningDate: string;
   status: string;
+  shiftStartTime?: string;
+  shiftEndTime?: string;
+  assignedLocation?: any;
 }
 
 const emptyForm = {
@@ -31,6 +34,9 @@ const emptyForm = {
   role: 'Employee',
   status: 'Active',
   defaultPayoutDay: '1',
+  shiftStartTime: '09:00',
+  shiftEndTime: '18:00',
+  assignedLocation: '',
 };
 
 const Employees = () => {
@@ -42,15 +48,18 @@ const Employees = () => {
   const [form, setForm] = useState({ ...emptyForm });
   const [submitting, setSubmitting] = useState(false);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
 
   const fetchEmployees = async () => {
     try {
-      const [empRes, deptRes] = await Promise.all([
+      const [empRes, deptRes, locRes] = await Promise.all([
         axios.get('/api/employees'),
-        axios.get('/api/departments')
+        axios.get('/api/departments'),
+        axios.get('/api/attendance/office-locations')
       ]);
       setEmployees(empRes.data);
       setDepartments(deptRes.data);
+      setLocations(locRes.data);
     } catch (error) {
       toast.error('Failed to load data');
     } finally {
@@ -86,6 +95,9 @@ const Employees = () => {
       role: (emp as any).userId?.role || 'Employee',
       status: (emp as any).userId?.status || 'Active',
       defaultPayoutDay: String((emp as any).defaultPayoutDay || 1),
+      shiftStartTime: emp.shiftStartTime || '09:00',
+      shiftEndTime: emp.shiftEndTime || '18:00',
+      assignedLocation: emp.assignedLocation?._id || emp.assignedLocation || '',
     });
     setShowModal(true);
   };
@@ -150,7 +162,6 @@ const Employees = () => {
         </button>
       </div>
 
-      {/* Search */}
       <div className="bg-white shadow-sm rounded-lg border border-gray-100 p-4">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -158,7 +169,6 @@ const Employees = () => {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-white shadow-sm rounded-lg border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -166,8 +176,7 @@ const Employees = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salary</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assignment</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payout</th>
                 <th className="px-6 py-3"><span className="sr-only">Actions</span></th>
@@ -175,7 +184,7 @@ const Employees = () => {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {loading ? (
-                <tr><td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">Loading...</td></tr>
               ) : filteredEmployees.length > 0 ? filteredEmployees.map((person) => (
                 <tr key={person._id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -194,16 +203,22 @@ const Employees = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{person.designation}</div>
-                    <div className="text-xs text-gray-500">{person.department}</div>
+                    <div className="text-sm text-gray-900">{person.department}</div>
+                    <div className="flex items-center text-xs text-gray-500 mt-0.5">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {typeof person.assignedLocation === 'object' ? person.assignedLocation?.name : 'Default Office'}
+                    </div>
+                    <div className="flex items-center text-[10px] text-primary-600 mt-1 font-bold">
+                        <Clock className="h-2.5 w-2.5 mr-1" />
+                        {person.shiftStartTime} - {person.shiftEndTime}
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₹{person.salary?.toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${person.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{person.status}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {(() => {
-                      const status = (person as any).payrollStatus;
+                      const status = (person as any).payrollStatus || 'Pending';
                       const config: Record<string, { bg: string; text: string; icon: any; pulse?: boolean }> = {
                         'Paid':       { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: CheckCircle },
                         'Pending':    { bg: 'bg-amber-100',   text: 'text-amber-700',   icon: Clock, pulse: true },
@@ -235,14 +250,13 @@ const Employees = () => {
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">{searchTerm ? 'No employees match your search.' : 'No employees yet. Click "Add Employee" to create one.'}</td></tr>
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">{searchTerm ? 'No employees match your search.' : 'No employees yet. Click "Add Employee" to create one.'}</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
@@ -292,23 +306,15 @@ const Employees = () => {
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Monthly Salary (₹) *</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Salary (₹) *</label>
                   <input type="number" name="salary" required value={form.salary} onChange={handleChange} placeholder="25000" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
                 </div>
                 <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-xs font-medium text-gray-700">Work Hrs/Day *</label>
-                    <Tooltip content="Used for hourly rate and overtime calculation" position="top">
-                      <Info className="h-3 w-3 text-gray-400 cursor-help" />
-                    </Tooltip>
-                  </div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Hrs/Day</label>
                   <select name="workHoursPerDay" value={form.workHoursPerDay} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500">
-                    <option value="4">4 hrs (Part-time)</option>
-                    <option value="6">6 hrs (Part-time)</option>
-                    <option value="8">8 hrs (Standard)</option>
-                    <option value="9">9 hrs (Full-time)</option>
-                    <option value="10">10 hrs (Extended)</option>
-                    <option value="12">12 hrs (Shift)</option>
+                    <option value="8">8 hrs</option>
+                    <option value="9">9 hrs</option>
+                    <option value="10">10 hrs</option>
                   </select>
                 </div>
                 <div>
@@ -319,28 +325,35 @@ const Employees = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    {editingId ? 'New Password (Optional)' : 'Login Password *'}
-                  </label>
-                  <input 
-                    type="password" 
-                    name="password" 
-                    required={!editingId} 
-                    value={form.password} 
-                    onChange={handleChange} 
-                    placeholder={editingId ? 'Leave blank to keep current' : 'Min 6 characters'} 
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" 
-                  />
-                  <p className="text-[10px] text-gray-400 mt-1">
-                    {editingId 
-                      ? 'Leave blank if you do not want to change the password'
-                      : 'Employee will use this to login'
-                    }
-                  </p>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Password</label>
+                  <input type="password" name="password" required={!editingId} value={form.password} onChange={handleChange} placeholder={editingId ? 'New (Optional)' : 'Login Pwd'} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Default Payout Day (1-31)</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Payout Day</label>
                   <input type="number" name="defaultPayoutDay" min="1" max="31" value={form.defaultPayoutDay} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+                </div>
+              </div>
+
+              <div className="bg-primary-50 p-4 rounded-xl space-y-3">
+                <p className="text-[10px] font-black text-primary-700 uppercase tracking-widest">Shift & Location Controls</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Shift Start *</label>
+                    <input type="time" name="shiftStartTime" required value={form.shiftStartTime} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Shift End *</label>
+                    <input type="time" name="shiftEndTime" required value={form.shiftEndTime} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Assigned Branch *</label>
+                  <select name="assignedLocation" required value={form.assignedLocation} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500 font-medium">
+                    <option value="">Select a Branch</option>
+                    {locations.map((loc) => (
+                      <option key={loc._id} value={loc._id}>{loc.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

@@ -48,7 +48,7 @@ const AdminSettings = () => {
         axios.get('/api/payroll/rules'),
         axios.get('/api/holidays'),
         axios.get('/api/config'),
-        axios.get('/api/attendance/locations/all'),
+        axios.get('/api/attendance/office-locations'),
         axios.get('/api/departments'),
       ]);
       if (rulesRes.status === 'fulfilled') setRules(rulesRes.value.data);
@@ -150,20 +150,42 @@ const AdminSettings = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await axios.post('/api/attendance/locations', {
+      await axios.post('/api/attendance/office-locations', {
         name: locName,
         latitude: Number(locLat),
         longitude: Number(locLng),
         radiusMeters: Number(locRadius),
         isActive: true
       });
-      toast.success('Office location updated!');
+      toast.success('New office location added!');
       setShowLocationForm(false);
+      setLocName(''); setLocLat(''); setLocLng('');
       fetchData();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update location');
+      toast.error(error.response?.data?.message || 'Failed to add location');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteLocation = async (id: string) => {
+    if (!window.confirm('Remove this office location?')) return;
+    try {
+      await axios.delete(`/api/attendance/office-locations/${id}`);
+      toast.success('Location removed');
+      fetchData();
+    } catch (error: any) {
+      toast.error('Failed to remove location');
+    }
+  };
+
+  const handleToggleLocation = async (id: string, current: boolean) => {
+    try {
+      await axios.put(`/api/attendance/office-locations/${id}`, { isActive: !current });
+      toast.success('Location status updated');
+      fetchData();
+    } catch (error: any) {
+      toast.error('Failed to update location');
     }
   };
 
@@ -476,7 +498,7 @@ const AdminSettings = () => {
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-semibold text-gray-900 flex items-center text-sm"><MapPin className="h-4 w-4 mr-2 text-gray-400" /> Office Geo-Fence</h3>
           <button onClick={() => setShowLocationForm(!showLocationForm)} className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center">
-            {showLocationForm ? 'Cancel' : <><Plus className="h-4 w-4 mr-1" /> Set Location</>}
+            {showLocationForm ? 'Cancel' : <><Plus className="h-4 w-4 mr-1" /> Add Branch</>}
           </button>
         </div>
 
@@ -511,15 +533,26 @@ const AdminSettings = () => {
 
         <div className="space-y-2">
           {locations.length > 0 ? locations.map((loc: any) => (
-            <div key={loc._id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 bg-gray-50">
+            <div key={loc._id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 bg-gray-50 group">
               <div className="flex items-center">
-                <div className={`p-2 rounded-lg mr-3 ${loc.isActive ? 'bg-emerald-100' : 'bg-gray-100'}`}>
-                  <MapPin className={`h-4 w-4 ${loc.isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
+                <div className={`p-2 rounded-lg mr-3 ${loc.isActive ? 'bg-emerald-100' : 'bg-gray-200'}`}>
+                  <MapPin className={`h-4 w-4 ${loc.isActive ? 'text-emerald-600' : 'text-gray-500'}`} />
                 </div>
                 <div>
                    <p className="text-sm font-semibold text-gray-900">{loc.name} {loc.isActive && <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full uppercase">Active</span>}</p>
                    <p className="text-xs text-gray-500">{loc.latitude}, {loc.longitude} • {loc.radiusMeters}m radius</p>
                 </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={() => handleToggleLocation(loc._id, loc.isActive)}
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${loc.isActive ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+                >
+                  {loc.isActive ? 'Online' : 'Offline'}
+                </button>
+                <button onClick={() => handleDeleteLocation(loc._id)} className="p-1 text-gray-300 hover:text-red-500 transition-colors">
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
             </div>
           )) : (

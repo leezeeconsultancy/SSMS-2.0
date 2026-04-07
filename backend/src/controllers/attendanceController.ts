@@ -7,7 +7,7 @@ import { DailyQR, generateDailyToken } from '../models/DailyQR';
 import { AttendanceRequest } from '../models/AttendanceRequest';
 import { OfficeLocation } from '../models/OfficeLocation';
 import { SystemConfig } from '../models/SystemConfig';
-import { getISTComponents, getISTStartOfDay, getTodayStringIST } from '../utils/dateUtils';
+import { formatISTTime, getISTComponents, getISTStartOfDay, getTodayStringIST } from '../utils/dateUtils';
 
 // ═══════════════════════════════════════════════════════════
 //  VALIDATION CONFIG — Anti-Manipulation Rules
@@ -184,141 +184,92 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
   const userId = req.user!._id;
 
   try {
-    const employee = await Employee.findOne({ userId }).populate('userId');
+    const employee = await Employee.findOne({ userId }).populate('userId assignedLocation');
     if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
 
     const user = employee.userId as any;
+    const assignedOffice = employee.assignedLocation as any;
 
-    // Use SERVER time only (client time can be faked)
+    // Use SERVER time only
     const serverNow = new Date();
-    // Use IST for all time validations (server runs in UTC)
     const ist = getISTComponents();
-    const currentHour = ist.hours;
-    const currentMinute = ist.minutes;
     const today = ist.dateString;
     const flags: string[] = [];
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  VALIDATION 0: Device Authorization
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 1. Device Authorization
     if (user.authorizedDeviceId && deviceId !== user.authorizedDeviceId) {
-      return res.status(403).json({
-        message: '🚫 Unauthorized device. Use your registered device to mark attendance.',
-        validation: 'INVALID_DEVICE'
-      });
+      return res.status(403).json({ message: '🚫 Unauthorized device.', validation: 'INVALID_DEVICE' });
     }
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  VALIDATION 1: Holiday Check
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 2. Holiday Check
     if (await isHoliday()) {
-      return res.status(403).json({
-        message: '🚫 Today is a holiday. No attendance required!',
-        validation: 'HOLIDAY_BLOCKED'
+      return res.status(403).json({ message: '🚫 Today is a holiday.', validation: 'HOLIDAY_BLOCKED' });
+    }
+
+    // 3. Personalized Shift & Geo-Fence Check
+    const [shiftH, shiftM] = (employee.shiftStartTime || "09:00").split(':').map(Number);
+    const shiftStart = new Date(serverNow);
+    shiftStart.setHours(shiftH, shiftM, 0, 0);
+
+    const checkInStart = new Date(shiftStart);
+    checkInStart.setHours(shiftStart.getHours() - 1); 
+
+    if (serverNow < checkInStart) {
+      return res.status(403).json({ 
+        message: `🚫 Too early! Check-in opens at ${checkInStart.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}.`,
+        validation: 'TOO_EARLY_CHECKIN' 
       });
     }
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  VALIDATION 3: Check-In Time Window
-    //  Only 5:00 AM to 1:00 PM — no fake early/late entries
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    if (currentHour < VALIDATION_RULES.CHECK_IN_START_HOUR) {
-      return res.status(403).json({
-        message: `🚫 Too early! Check-in opens at ${VALIDATION_RULES.CHECK_IN_START_HOUR}:00 AM. Current time: ${currentHour}:${String(currentMinute).padStart(2, '0')}`,
-        validation: 'TOO_EARLY_CHECKIN'
-      });
-    }
-    if (currentHour >= VALIDATION_RULES.CHECK_IN_END_HOUR) {
-      // Check if Admin has approved a late check-in request for today
-      const approvedRequest = await AttendanceRequest.findOne({
-        employeeId: employee._id,
-        date: today,
-        status: 'Approved',
-        type: 'Late Check-in'
-      });
-
-      if (!approvedRequest) {
-        return res.status(403).json({
-          message: `🚫 Check-in window closed. You cannot check in after ${VALIDATION_RULES.CHECK_IN_END_HOUR > 12 ? VALIDATION_RULES.CHECK_IN_END_HOUR - 12 : VALIDATION_RULES.CHECK_IN_END_HOUR}:00 ${VALIDATION_RULES.CHECK_IN_END_HOUR >= 12 ? 'PM' : 'AM'}. Submit a request for Admin approval.`,
-          validation: 'LATE_CHECKIN_BLOCKED'
-        });
-      }
-      
-      // If approved, mark as admin approved late
-      flags.push('ADMIN_APPROVED_LATE');
-    }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  VALIDATION 4: QR Token Validation
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const qr = await DailyQR.findOne({ employeeId: employee._id, date: today });
-    if (!qr) return res.status(400).json({ message: '🚫 No QR token for today. Please wait or contact admin.' });
-    if (qr.token !== qrToken) return res.status(400).json({ message: '🚫 Invalid QR token. Possible tampering detected.', validation: 'INVALID_TOKEN' });
-    if (qr.used) return res.status(400).json({ message: '🚫 Token already used. You have already marked attendance today.', validation: 'TOKEN_REUSE' });
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  VALIDATION 5: Duplicate Check-In Protection
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const startOfDay = getISTStartOfDay();
-    const existingAttendance = await Attendance.findOne({
-      employeeId: employee._id,
-      date: { $gte: startOfDay },
-    });
-    if (existingAttendance) {
-      return res.status(400).json({ message: '🚫 Already checked in today. Cannot mark twice.', validation: 'DUPLICATE_CHECKIN' });
-    }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  VALIDATION 6: GPS Validation — Must provide location
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    if (!latitude || !longitude || latitude === 0 || longitude === 0) {
-      flags.push('NO_GPS_CHECKIN');
-    }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  VALIDATION 7: GEO-FENCE — Must be at office location
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const officeLocation = await OfficeLocation.findOne({ isActive: true });
-    if (officeLocation && latitude && longitude && latitude !== 0 && longitude !== 0) {
+    // Geofence check (Assigned or Default)
+    const officeLocation = assignedOffice || await OfficeLocation.findOne({ isActive: true });
+    if (officeLocation && latitude && longitude) {
       const distanceKm = haversineDistance(latitude, longitude, officeLocation.latitude, officeLocation.longitude);
       const distanceMeters = distanceKm * 1000;
       if (distanceMeters > officeLocation.radiusMeters) {
         return res.status(403).json({
-          message: `🚫 You are ${Math.round(distanceMeters)}m away from ${officeLocation.name}. You must be within ${officeLocation.radiusMeters}m to mark attendance.`,
-          validation: 'OUTSIDE_GEOFENCE',
-          distance: Math.round(distanceMeters),
-          requiredRadius: officeLocation.radiusMeters,
+          message: `🚫 You are ${Math.round(distanceMeters)}m from ${officeLocation.name}. Must be within ${officeLocation.radiusMeters}m.`,
+          validation: 'OUTSIDE_GEOFENCE'
         });
       }
     }
 
-    // Fetch dynamic config for late threshold
-    const config = await SystemConfig.findOne() || await SystemConfig.create({});
-
-    // Determine Status (server time only) — DYNAMIC threshold
-    let status: string = 'Present';
-    if (currentHour > config.lateThresholdHour || (currentHour === config.lateThresholdHour && currentMinute > config.lateThresholdMinute)) {
-      status = 'Late';
+    // 4. QR Token Validation
+    const qr = await DailyQR.findOne({ employeeId: employee._id, date: today });
+    if (!qr || qr.token !== qrToken || qr.used) {
+      return res.status(400).json({ message: '🚫 Invalid or reused QR token.', validation: 'INVALID_TOKEN' });
     }
+
+    // 5. Duplicate Check
+    const startOfDay = getISTStartOfDay();
+    const existing = await Attendance.findOne({ employeeId: employee._id, date: { $gte: startOfDay } });
+    if (existing) return res.status(400).json({ message: '🚫 Already checked in today.', validation: 'DUPLICATE_CHECKIN' });
+
+    // Determine Status (15 min grace)
+    const lateThreshold = new Date(shiftStart);
+    lateThreshold.setMinutes(shiftStart.getMinutes() + 15);
+    const status = serverNow > lateThreshold ? 'Late' : 'Present';
 
     const attendance = await Attendance.create({
       employeeId: employee._id,
       date: serverNow,
       checkIn: {
-        time: serverNow, // Use SERVER time, not client time
+        time: serverNow,
         location: { latitude: latitude || 0, longitude: longitude || 0 },
         deviceType: 'Web App',
       },
       status,
       flags,
-      serverCheckInTime: serverNow, // Immutable server timestamp
+      serverCheckInTime: serverNow,
     });
 
-    // Mark QR as used
     qr.used = true;
     await qr.save();
 
-    return res.status(201).json({ message: `✅ Check-in successful (${status}) at ${serverNow.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}`, attendance });
+    return res.status(201).json({ 
+      message: `✅ Check-in successful (${status}) at ${formatISTTime(serverNow)} (Shift: ${employee.shiftStartTime})`, 
+      attendance 
+    });
   } catch (error: any) {
     return res.status(500).json({ message: error.message });
   }
@@ -519,15 +470,17 @@ export const checkLocation = async (req: AuthRequest, res: Response) => {
     const { latitude, longitude } = req.query;
     const lat = parseFloat(latitude as string);
     const lng = parseFloat(longitude as string);
+    const userId = req.user!._id;
 
     if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
       return res.status(400).json({ message: 'Latitude and longitude are required', withinRange: false });
     }
 
-    const officeLocation = await OfficeLocation.findOne({ isActive: true });
+    const employee = await Employee.findOne({ userId });
+    const officeLocation = await OfficeLocation.findById(employee?.assignedLocation) || await OfficeLocation.findOne({ isActive: true });
+    
     if (!officeLocation) {
-      // No office location configured — allow attendance from anywhere
-      return res.json({ withinRange: true, distance: 0, officeName: 'Not Configured', radiusMeters: 0, noOfficeConfigured: true });
+      return res.json({ withinRange: true, distance: 0, officeName: 'Not Assigned', radiusMeters: 0, noOfficeConfigured: true });
     }
 
     const distanceKm = haversineDistance(lat, lng, officeLocation.latitude, officeLocation.longitude);
@@ -539,6 +492,7 @@ export const checkLocation = async (req: AuthRequest, res: Response) => {
       distance: distanceMeters,
       officeName: officeLocation.name,
       radiusMeters: officeLocation.radiusMeters,
+      isAssigned: !!employee?.assignedLocation
     });
   } catch (error: any) {
     return res.status(500).json({ message: error.message, withinRange: false });
@@ -560,28 +514,28 @@ export const getOfficeLocations = async (req: AuthRequest, res: Response) => {
 // ═══════════════════════════════════════════════════════════
 //  ADMIN: Create or update office location
 // ═══════════════════════════════════════════════════════════
-export const setOfficeLocation = async (req: AuthRequest, res: Response) => {
+export const createOfficeLocation = async (req: AuthRequest, res: Response) => {
   try {
-    const { name, latitude, longitude, radiusMeters, isActive } = req.body;
+    const location = await OfficeLocation.create(req.body);
+    return res.status(201).json({ message: 'Office location created', location });
+  } catch (error: any) {
+    return res.status(500).json({ message: error.message });
+  }
+};
 
-    if (!name || !latitude || !longitude) {
-      return res.status(400).json({ message: 'Name, latitude, and longitude are required' });
-    }
+export const updateOfficeLocation = async (req: AuthRequest, res: Response) => {
+  try {
+    const location = await OfficeLocation.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    return res.json({ message: 'Office location updated', location });
+  } catch (error: any) {
+    return res.status(500).json({ message: error.message });
+  }
+};
 
-    // Deactivate all other locations if this one is active
-    if (isActive !== false) {
-      await OfficeLocation.updateMany({}, { isActive: false });
-    }
-
-    const location = await OfficeLocation.create({
-      name,
-      latitude,
-      longitude,
-      radiusMeters: radiusMeters || 200,
-      isActive: isActive !== false,
-    });
-
-    return res.status(201).json({ message: 'Office location saved successfully', location });
+export const deleteOfficeLocation = async (req: AuthRequest, res: Response) => {
+  try {
+    await OfficeLocation.findByIdAndDelete(req.params.id);
+    return res.json({ message: 'Office location deleted' });
   } catch (error: any) {
     return res.status(500).json({ message: error.message });
   }
