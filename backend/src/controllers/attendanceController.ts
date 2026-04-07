@@ -362,7 +362,7 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
     qr.used = true;
     await qr.save();
 
-    return res.status(201).json({ message: `✅ Check-in successful (${status}) at ${serverNow.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`, attendance });
+    return res.status(201).json({ message: `✅ Check-in successful (${status}) at ${serverNow.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}`, attendance });
   } catch (error: any) {
     return res.status(500).json({ message: error.message });
   }
@@ -520,7 +520,7 @@ export const checkOut = async (req: AuthRequest, res: Response) => {
 
     const flagMsg = flags.length > 0 ? ` ⚠️ ${flags.length} flag(s) recorded.` : '';
     return res.json({
-      message: `✅ Check-out at ${serverNow.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}. Worked ${validatedHours}h (required: ${requiredHours}h).${flagMsg}`,
+      message: `✅ Check-out at ${serverNow.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}. Worked ${validatedHours}h (required: ${requiredHours}h).${flagMsg}`,
       attendance,
     });
   } catch (error: any) {
