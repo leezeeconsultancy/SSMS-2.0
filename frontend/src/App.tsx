@@ -23,7 +23,10 @@ const App = () => {
   useEffect(() => {
     // Axios Interceptor for Database Connection Errors
     const interceptor = axios.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        toast.dismiss('db-waking'); // Clear if success
+        return response;
+      },
       async (error) => {
         if (error.response?.status === 503 && error.response.data?.code === 'DB_CONNECTION_ERROR') {
           // Show a friendly, non-alarming message for free-tier cold starts

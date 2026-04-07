@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { Loader2, LogIn, Shield, Users, BarChart3 } from 'lucide-react';
 
 const getDeviceId = () => {
@@ -33,6 +33,8 @@ const Login = () => {
         deviceId 
       });
       const { token, ...userData } = response.data;
+      
+      toast.dismiss(); // Dismiss all previous toasts (like "waking up")
       login(userData, token);
       toast.success('Login Successful!');
 
@@ -43,9 +45,9 @@ const Login = () => {
       }
     } catch (error: any) {
       if (!error.response) {
-        toast.error('Network Error: Cannot reach the server from your mobile. Check if both are on the same WiFi.');
+        toast.error('Network Error: Cannot reach the server. Please check your connection.');
       } else {
-        toast.error(error.response.data?.message || 'Login failed. Check email and password.');
+        toast.error(error.response.data?.message || 'Login failed. Check credentials.');
       }
     } finally {
       setLoading(false);
@@ -60,8 +62,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-primary-900 to-indigo-900 flex items-center justify-center p-4">
-      <Toaster position="top-center" />
-      
       <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white rounded-3xl shadow-2xl overflow-hidden">
         {/* Left: Branding Panel */}
         <div className="hidden lg:flex flex-col justify-center bg-gradient-to-br from-primary-600 to-indigo-700 p-12 text-white relative overflow-hidden">

@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { 
   Clock, CalendarCheck, TrendingUp, AlertTriangle, 
   IndianRupee, Briefcase, History, CheckCircle2, 
-  CalendarDays, Info
+  CalendarDays, Info, ArrowRight, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [attendance, setAttendance] = useState<any[]>([]);
   const [payouts, setPayouts] = useState<any[]>([]);
@@ -38,20 +40,17 @@ const EmployeeDashboard = () => {
 
   if (loading) {
     return (
-      <div className="space-y-4 p-5 animate-pulse">
-        <div className="h-44 bg-slate-200/60 rounded-3xl" />
-        <div className="grid grid-cols-3 gap-3">
-          <div className="h-24 bg-slate-200/60 rounded-2xl" />
-          <div className="h-24 bg-slate-200/60 rounded-2xl" />
-          <div className="h-24 bg-slate-200/60 rounded-2xl" />
-        </div>
-        <div className="h-48 bg-slate-200/60 rounded-2xl" />
+      <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+        <Loader2 className="h-8 w-8 animate-spin mb-2" />
+        <p className="text-xs font-bold uppercase tracking-widest">Loading Dashboard...</p>
       </div>
     );
   }
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
+  const today = new Date().toISOString().split('T')[0];
+  const hasClockedInToday = attendance.some(a => a.date?.split('T')[0] === today && a.checkIn);
   
   const currentMonthPayout = payouts.find((p: any) => p.month === currentMonth && p.year === currentYear);
   const currentStatus = currentMonthPayout?.status || 'Not Started';
@@ -73,48 +72,58 @@ const EmployeeDashboard = () => {
   const totalHours = attendance.reduce((sum, a) => sum + (a.totalWorkingHours || 0), 0);
 
   return (
-    <div className="space-y-5 p-4 max-w-lg mx-auto stagger-children">
+    <div className="space-y-4 px-4 pb-20 max-w-lg mx-auto">
       
+      {/* ═══ Clock In Action ═══ */}
+      {!hasClockedInToday && (
+        <div 
+          onClick={() => navigate('/employee/attendance')} 
+          className="bg-white border-2 border-emerald-500 rounded-3xl p-5 flex items-center justify-between cursor-pointer active:scale-95 transition-transform shadow-lg shadow-emerald-100 mt-2"
+        >
+           <div className="flex items-center">
+              <div className="bg-emerald-50 p-3 rounded-2xl mr-4">
+                <Clock className="h-6 w-6 text-emerald-600 animate-pulse" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-slate-800">Time to Clock In!</p>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Tap here to mark attendance</p>
+              </div>
+           </div>
+           <ArrowRight className="h-5 w-5 text-emerald-500" />
+        </div>
+      )}
+
       {/* ═══ Premium Welcome Card ═══ */}
-      <div className="gradient-hero rounded-3xl p-6 text-white shadow-xl shadow-primary-900/20 relative overflow-hidden">
-        {/* Decorative orbs */}
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-2xl" />
-        <div className="absolute -bottom-20 -left-10 w-48 h-48 bg-primary-400/10 rounded-full blur-3xl" />
+      <div className="bg-gradient-to-br from-primary-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
         <div className="absolute top-3 right-4 opacity-[0.06]"><Briefcase className="h-24 w-24" /></div>
         
-        <h2 className="text-2xl font-extrabold mb-0.5 relative">Hello, {profile?.name || user?.name}!</h2>
-        <p className="text-indigo-200 text-[10px] font-bold uppercase tracking-[0.15em] mb-6 opacity-80">{profile?.department} • {profile?.designation}</p>
+        <h2 className="text-2xl font-black mb-0.5">Hello, {profile?.name || user?.name}!</h2>
+        <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mb-6 opacity-80">{profile?.department} • {profile?.designation}</p>
 
-        <div className="glass-dark rounded-2xl p-5 border border-white/10 relative">
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
-                <p className="text-[10px] text-indigo-200 font-extrabold uppercase tracking-[0.15em] mb-1.5">
-                    {sc.label}
-                </p>
+                <p className="text-[10px] text-indigo-100 font-black uppercase tracking-widest mb-1.5">{sc.label}</p>
                 <div className="flex items-center space-x-1">
                     <IndianRupee className={`h-5 w-5 ${sc.iconColor}`} />
                     <span className="text-3xl font-black tracking-tight">
                         {currentMonthPayout ? currentMonthPayout.netSalary.toLocaleString() : 'PENDING'}
                     </span>
                 </div>
-                {currentMonthPayout?.holdAmount > 0 && (
-                  <p className="text-[10px] text-orange-300 font-bold mt-1">₹{currentMonthPayout.holdAmount.toLocaleString()} held</p>
-                )}
             </div>
-            <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg ${sc.circleBg} backdrop-blur-md`}>
+            <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg ${sc.circleBg}`}>
                 {isPaidThisMonth ? <TrendingUp className="h-6 w-6 text-white" /> : <Clock className="h-6 w-6 text-white" />}
             </div>
           </div>
-          
           <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-            <div className="flex items-center text-[10px] font-bold text-indigo-200">
+            <div className="flex items-center text-[10px] font-bold text-indigo-100 italic">
                 <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
                 {isPaidThisMonth 
-                    ? `Paid on ${new Date(currentMonthPayout.payoutDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
-                    : `Expected Day: ${expectedPayoutDay} ${new Date().toLocaleDateString('en-IN', { month: 'short' })}`
+                    ? `Paid on ${new Date(currentMonthPayout.payoutDate).toLocaleDateString('en-IN')}`
+                    : `Expected: ${expectedPayoutDay} ${new Date().toLocaleDateString('en-IN', { month: 'short' })}`
                 }
             </div>
-            <div className={`text-[9px] font-black px-2.5 py-0.5 rounded-full ${sc.badgeBg} backdrop-blur-sm`}>
+            <div className={`text-[9px] font-black px-2.5 py-0.5 rounded-full ${sc.badgeBg}`}>
                 {sc.badge}
             </div>
           </div>
@@ -127,80 +136,40 @@ const EmployeeDashboard = () => {
           { icon: CalendarCheck, value: totalPresent, label: 'Present', color: 'emerald', bg: 'bg-emerald-50' },
           { icon: AlertTriangle, value: totalLate, label: 'Late', color: 'amber', bg: 'bg-amber-50' },
           { icon: Clock, value: `${totalHours.toFixed(0)}h`, label: 'Worked', color: 'blue', bg: 'bg-blue-50' },
-        ].map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <div key={i} className="silk-card p-4 text-center flex flex-col items-center">
-              <div className={`${stat.bg} p-2 rounded-xl mb-2.5`}>
-                <Icon className={`h-5 w-5 text-${stat.color}-600`} />
-              </div>
-              <span className="text-xl font-black text-slate-900 leading-none">{stat.value}</span>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1.5">{stat.label}</span>
+        ].map((stat, i) => (
+          <div key={i} className="bg-white rounded-2xl p-4 border border-slate-100 text-center flex flex-col items-center hover:shadow-sm transition-all shadow-indigo-50">
+            <div className={`${stat.bg} p-2 rounded-xl mb-2`}>
+              <stat.icon className={`h-4.5 w-4.5 text-${stat.color}-600`} />
             </div>
-          );
-        })}
+            <span className="text-xl font-black text-slate-900">{stat.value}</span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{stat.label}</span>
+          </div>
+        ))}
       </div>
 
-      {/* ═══ Payout History ═══ */}
-      <div className="silk-card p-5 overflow-hidden">
-        <h3 className="font-extrabold text-slate-900 mb-4 flex items-center text-xs uppercase tracking-[0.12em]">
-          <History className="h-4 w-4 mr-2 text-primary-500" />
-          Payout History
+      {/* ═══ History ═══ */}
+      <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm">
+        <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-4 flex items-center">
+          <History className="h-3 w-3 mr-2" />
+          Recent Payouts
         </h3>
         <div className="space-y-3">
           {payouts.length > 0 ? payouts.slice(0, 3).map((p, idx) => (
-            <div key={idx} className="flex items-center justify-between p-3.5 bg-slate-50/80 rounded-2xl border border-slate-100 hover:border-primary-200 transition-all duration-200 group">
+            <div key={idx} className="flex items-center justify-between p-3.5 bg-slate-50/50 rounded-2xl border border-slate-50">
               <div className="flex items-center">
-                <div className="bg-white p-2.5 rounded-xl mr-3 shadow-sm border border-slate-100 group-hover:shadow-md transition-shadow duration-200">
+                <div className="bg-white p-2.5 rounded-xl mr-3 shadow-sm border border-slate-100">
                   <IndianRupee className="h-4 w-4 text-primary-500" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-900">{new Date(p.year, p.month - 1).toLocaleDateString('default', { month: 'long', year: 'numeric' })}</p>
-                  <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Paid on {new Date(p.payoutDate).toLocaleDateString()}</p>
+                  <p className="text-sm font-black text-slate-800">{new Date(p.year, p.month - 1).toLocaleDateString('default', { month: 'long', year: 'numeric' })}</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Paid: {new Date(p.payoutDate).toLocaleDateString()}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-black text-primary-600">₹{p.netSalary.toLocaleString()}</p>
-                {p.holdAmount > 0 && (
-                  <p className="text-[9px] text-orange-500 font-bold">₹{p.holdAmount.toLocaleString()} held</p>
-                )}
-                <div className="flex items-center justify-end text-[8px] font-black uppercase mt-0.5">
-                    {(() => {
-                        const statusMap: Record<string, { color: string; label: string }> = {
-                            'Paid':       { color: 'text-emerald-600', label: 'Paid' },
-                            'Pending':    { color: 'text-amber-600',   label: 'Pending' },
-                            'Processing': { color: 'text-blue-600',    label: 'Processing' },
-                            'On Hold':    { color: 'text-orange-600',  label: 'On Hold' },
-                            'Cancelled':  { color: 'text-red-600',     label: 'Cancelled' },
-                        };
-                        const sm = statusMap[p.status] || statusMap['Pending'];
-                        return (
-                            <span className={`${sm.color} flex items-center`}>
-                                {p.status === 'Paid' ? <CheckCircle2 className="h-2.5 w-2.5 mr-1" /> : <Clock className="h-2.5 w-2.5 mr-1" />}
-                                {sm.label}
-                            </span>
-                        );
-                    })()}
-                </div>
-              </div>
+              <p className="text-sm font-black text-primary-600">₹{p.netSalary.toLocaleString()}</p>
             </div>
           )) : (
-            <div className="text-center py-8">
-                <div className="bg-slate-100 rounded-full p-4 w-fit mx-auto mb-3">
-                  <Info className="h-6 w-6 text-slate-300" />
-                </div>
-                <p className="text-[11px] text-slate-400 font-semibold">No salary records yet</p>
-            </div>
+            <p className="text-center py-6 text-slate-400 text-[10px] font-black uppercase tracking-widest italic outline-dashed outline-1 outline-slate-100 rounded-2xl">No payouts yet</p>
           )}
-        </div>
-      </div>
-
-      {/* ═══ Info ═══ */}
-      <div className="bg-primary-50/60 rounded-2xl p-4 flex items-start border border-primary-100/80">
-        <Info className="h-4 w-4 text-primary-400 mt-0.5 mr-2.5 shrink-0" />
-        <div>
-            <p className="text-[10px] font-extrabold text-primary-700 uppercase tracking-tight">Financial Transparency</p>
-            <p className="text-[9px] text-primary-500 mt-0.5 leading-relaxed">Your net salary includes base pay, bonuses, and overtime, after any deduction rules applied by HR. Payout dates may vary per month.</p>
         </div>
       </div>
     </div>

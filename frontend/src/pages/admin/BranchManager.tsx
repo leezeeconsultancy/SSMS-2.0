@@ -105,7 +105,7 @@ const BranchManager = () => {
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary-600" /></div>;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 sm:pb-8">
       <Toaster position="top-right" />
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
