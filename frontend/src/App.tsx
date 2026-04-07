@@ -23,13 +23,22 @@ const App = () => {
     // Axios Interceptor for Database Connection Errors
     const interceptor = axios.interceptors.response.use(
       (response) => response,
-      (error) => {
+      async (error) => {
         if (error.response?.status === 503 && error.response.data?.code === 'DB_CONNECTION_ERROR') {
-          toast.error('❌ Database Connection Offline. Some features may not work.', {
-            id: 'db-error', // Prevent multiple toasts
-            duration: 10000,
-            style: { background: '#fef2f2', color: '#b91c1c', border: '1px solid #fee2e2' }
+          // Show a friendly, non-alarming message for free-tier cold starts
+          toast('⏳ Service is waking up — please wait a moment...', {
+            id: 'db-waking', // Prevent multiple toasts
+            duration: 5000,
+            icon: '🔄',
+            style: { background: '#eff6ff', color: '#1e40af', border: '1px solid #dbeafe', fontWeight: 600 }
           });
+
+          // Auto-retry the failed request after a short delay if server says it's retryable
+          if (error.response.data?.retryable && error.config && !error.config._retried) {
+            error.config._retried = true;
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            return axios(error.config);
+          }
         }
         return Promise.reject(error);
       }

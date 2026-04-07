@@ -34,13 +34,53 @@ const VALIDATION_RULES = {
 };
 
 // ═══════════════════════════════════════════════════════════
-//  HELPERS
+//  IST TIMEZONE HELPERS
+//  Server runs in UTC — all business logic must use IST
+//  (Asia/Kolkata, UTC+5:30)
 // ═══════════════════════════════════════════════════════════
-const getTodayString = (): string => {
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+
+/**
+ * Returns current IST time components for business logic comparisons.
+ * Uses Intl timezone conversion for accuracy (handles DST edge cases).
+ */
+const getISTComponents = () => {
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const istStr = now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+  const istDate = new Date(istStr);
+  return {
+    hours: istDate.getHours(),
+    minutes: istDate.getMinutes(),
+    day: istDate.getDay(), // 0 = Sunday
+    date: istDate.getDate(),
+    month: istDate.getMonth(),
+    year: istDate.getFullYear(),
+    dateString: `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`,
+  };
 };
 
+/**
+ * Returns UTC Date representing IST midnight (start of today in IST).
+ * Used for MongoDB date range queries.
+ */
+const getISTStartOfDay = (): Date => {
+  const ist = getISTComponents();
+  // Create UTC date for IST midnight, then subtract offset to get true UTC equivalent
+  const utcMidnight = new Date(Date.UTC(ist.year, ist.month, ist.date, 0, 0, 0, 0));
+  utcMidnight.setTime(utcMidnight.getTime() - IST_OFFSET_MS);
+  return utcMidnight;
+};
+
+/**
+ * Returns today's date in IST as YYYY-MM-DD string.
+ */
+const getTodayString = (): string => {
+  return getISTComponents().dateString;
+};
+
+// ═══════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════
 const calculateHours = (checkIn: Date, checkOut: Date): number => {
   const diffTime = Math.abs(checkOut.getTime() - checkIn.getTime());
   return diffTime / (1000 * 60 * 60);
@@ -61,16 +101,14 @@ const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-// Check if today is a Sunday
-const isSunday = (): boolean => new Date().getDay() === 0;
+// Check if today is a Sunday (using IST day)
+const isSunday = (): boolean => getISTComponents().day === 0;
 
-// Check if today is a holiday
+// Check if today is a holiday (using IST day boundaries)
 const isHoliday = async (): Promise<boolean> => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const holiday = await Holiday.findOne({ date: { $gte: today, $lt: tomorrow } });
+  const istStartOfDay = getISTStartOfDay();
+  const istEndOfDay = new Date(istStartOfDay.getTime() + 24 * 60 * 60 * 1000);
+  const holiday = await Holiday.findOne({ date: { $gte: istStartOfDay, $lt: istEndOfDay } });
   return !!holiday;
 };
 
@@ -197,9 +235,11 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
 
     // Use SERVER time only (client time can be faked)
     const serverNow = new Date();
-    const currentHour = serverNow.getHours();
-    const currentMinute = serverNow.getMinutes();
-    const today = getTodayString();
+    // Use IST for all time validations (server runs in UTC)
+    const ist = getISTComponents();
+    const currentHour = ist.hours;
+    const currentMinute = ist.minutes;
+    const today = ist.dateString;
     const flags: string[] = [];
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -263,8 +303,7 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     //  VALIDATION 5: Duplicate Check-In Protection
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const startOfDay = getISTStartOfDay();
     const existingAttendance = await Attendance.findOne({
       employeeId: employee._id,
       date: { $gte: startOfDay },
@@ -352,8 +391,7 @@ export const checkOut = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const startOfDay = getISTStartOfDay();
 
     const attendance = await Attendance.findOne({
       employeeId: employee._id,
@@ -367,10 +405,11 @@ export const checkOut = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: '🚫 Already checked out today. Cannot check out twice.', validation: 'DUPLICATE_CHECKOUT' });
     }
 
-    // Use SERVER time only
+    // Use SERVER time only — IST for validations
     const serverNow = new Date();
-    const currentHour = serverNow.getHours();
-    const currentMinute = serverNow.getMinutes();
+    const ist = getISTComponents();
+    const currentHour = ist.hours;
+    const currentMinute = ist.minutes;
     const flags: string[] = [...(attendance.flags || [])];
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
