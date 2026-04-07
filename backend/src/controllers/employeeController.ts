@@ -88,6 +88,7 @@ export const getEmployeeById = async (req: AuthRequest, res: Response) => {
 };
 
 export const updateEmployee = async (req: AuthRequest, res: Response) => {
+  const { password, role, status, ...employeeData } = req.body;
   try {
     const employee = await Employee.findById(req.params.id);
 
@@ -95,11 +96,27 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Employee not found' });
     }
 
+    // If password is provided, update the User model
+    if (password && employee.userId) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+      await User.findByIdAndUpdate(employee.userId, { password: hashedPassword });
+    }
+
+    // Update User role or status if provided
+    if ((role || status) && employee.userId) {
+      const userUpdate: any = {};
+      if (role) userUpdate.role = role;
+      if (status) userUpdate.status = status;
+      await User.findByIdAndUpdate(employee.userId, userUpdate);
+    }
+
     const updatedEmployee = await Employee.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      employeeData,
       { new: true }
-    );
+    ).populate('userId', 'role status');
+
     return res.json(updatedEmployee);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

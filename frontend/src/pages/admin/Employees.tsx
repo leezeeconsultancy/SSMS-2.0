@@ -77,7 +77,8 @@ const Employees = () => {
       workHoursPerDay: String((emp as any).workHoursPerDay || 9),
       joiningDate: emp.joiningDate?.slice(0, 10) || '',
       password: '',
-      role: 'Employee',
+      role: (emp as any).userId?.role || 'Employee',
+      status: (emp as any).userId?.status || 'Active',
       defaultPayoutDay: String((emp as any).defaultPayoutDay || 1),
     });
     setShowModal(true);
@@ -315,24 +316,49 @@ const Employees = () => {
                 </div>
               </div>
 
-              {!editingId && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Login Password *</label>
-                    <input type="text" name="password" required={!editingId} value={form.password} onChange={handleChange} placeholder="Min 6 characters" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
-                    <p className="text-[10px] text-gray-400 mt-1">Employee will use this to login</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Default Payout Day (1-31)</label>
-                    <input type="number" name="defaultPayoutDay" min="1" max="31" value={form.defaultPayoutDay} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
-                  </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    {editingId ? 'New Password (Optional)' : 'Login Password *'}
+                  </label>
+                  <input 
+                    type="password" 
+                    name="password" 
+                    required={!editingId} 
+                    value={form.password} 
+                    onChange={handleChange} 
+                    placeholder={editingId ? 'Leave blank to keep current' : 'Min 6 characters'} 
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" 
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    {editingId 
+                      ? 'Leave blank if you do not want to change the password'
+                      : 'Employee will use this to login'
+                    }
+                  </p>
                 </div>
-              )}
-
-              {editingId && (
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Default Payout Day (1-31)</label>
                   <input type="number" name="defaultPayoutDay" min="1" max="31" value={form.defaultPayoutDay} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+                </div>
+              </div>
+
+              {editingId && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
+                    <select name="role" value={(form as any).role} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                      <option value="Employee">Employee</option>
+                      <option value="Admin">Admin</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                    <select name="status" value={(form as any).status} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500">
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
                 </div>
               )}
 
