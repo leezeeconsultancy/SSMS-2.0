@@ -29,6 +29,7 @@ const emptyForm = {
   joiningDate: '',
   password: '',
   role: 'Employee',
+  status: 'Active',
   defaultPayoutDay: '1',
 };
 
@@ -40,13 +41,18 @@ const Employees = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [submitting, setSubmitting] = useState(false);
+  const [departments, setDepartments] = useState<any[]>([]);
 
   const fetchEmployees = async () => {
     try {
-      const response = await axios.get('/api/employees');
-      setEmployees(response.data);
+      const [empRes, deptRes] = await Promise.all([
+        axios.get('/api/employees'),
+        axios.get('/api/departments')
+      ]);
+      setEmployees(empRes.data);
+      setDepartments(deptRes.data);
     } catch (error) {
-      toast.error('Failed to load employees');
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -271,16 +277,11 @@ const Employees = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Department *</label>
-                  <select name="department" required value={form.department} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500">
-                    <option value="">Select</option>
-                    <option value="Engineering">Engineering</option>
-                    <option value="Design">Design</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Sales">Sales</option>
-                    <option value="HR">HR</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Operations">Operations</option>
-                    <option value="Support">Support</option>
+                  <select name="department" required value={form.department} onChange={handleChange} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500 font-medium">
+                    <option value="">Select Department</option>
+                    {departments.map((dept) => (
+                      <option key={dept._id} value={dept.name}>{dept.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

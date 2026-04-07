@@ -180,6 +180,14 @@ try {
   console.error('[BOOT] ❌ Failed to load configRoutes:', e instanceof Error ? e.message : e);
 }
 
+try {
+  const departmentRoutes = require('./routes/departmentRoutes').default;
+  app.use('/api/departments', departmentRoutes);
+  console.log('[BOOT] ✅ departmentRoutes loaded');
+} catch (e: unknown) {
+  console.error('[BOOT] ❌ Failed to load departmentRoutes:', e instanceof Error ? e.message : e);
+}
+
 console.log('[BOOT] Route loading complete.');
 
 // Global Error Handler

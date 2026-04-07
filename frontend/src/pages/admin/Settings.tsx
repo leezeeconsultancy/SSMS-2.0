@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Plus, Trash2, Save, Sliders, Settings as SettingsIcon, 
-  Loader2, Info, RefreshCw, Clock, Shield, CalendarDays
+  Loader2, Info, RefreshCw, Clock, Shield, CalendarDays, MapPin, Building
 } from 'lucide-react';
 import Tooltip from '../../components/Tooltip';
 import toast from 'react-hot-toast';
@@ -13,6 +13,8 @@ const AdminSettings = () => {
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<any>(null);
   const [configLoading, setConfigLoading] = useState(false);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
 
   // New Rule Form
   const [showRuleForm, setShowRuleForm] = useState(false);
@@ -28,16 +30,32 @@ const AdminSettings = () => {
   const [holidayDate, setHolidayDate] = useState('');
   const [holidayType, setHolidayType] = useState('Public Holiday');
 
+  // New Office Location Form
+  const [showLocationForm, setShowLocationForm] = useState(false);
+  const [locName, setLocName] = useState('');
+  const [locLat, setLocLat] = useState('');
+  const [locLng, setLocLng] = useState('');
+  const [locRadius, setLocRadius] = useState('200');
+
+  // New Department Form
+  const [showDeptForm, setShowDeptForm] = useState(false);
+  const [deptName, setDeptName] = useState('');
+  const [deptCode, setDeptCode] = useState('');
+
   const fetchData = async () => {
     try {
-      const [rulesRes, holidaysRes, configRes] = await Promise.allSettled([
+      const [rulesRes, holidaysRes, configRes, locRes, deptRes] = await Promise.allSettled([
         axios.get('/api/payroll/rules'),
         axios.get('/api/holidays'),
         axios.get('/api/config'),
+        axios.get('/api/attendance/locations/all'),
+        axios.get('/api/departments'),
       ]);
       if (rulesRes.status === 'fulfilled') setRules(rulesRes.value.data);
       if (holidaysRes.status === 'fulfilled') setHolidays(holidaysRes.value.data);
       if (configRes.status === 'fulfilled') setConfig(configRes.value.data);
+      if (locRes.status === 'fulfilled') setLocations(locRes.value.data);
+      if (deptRes.status === 'fulfilled') setDepartments(locRes.status === 'fulfilled' ? deptRes.value.data : []);
     } catch (error) {
       toast.error('Failed to load settings');
     } finally {
@@ -125,6 +143,53 @@ const AdminSettings = () => {
       toast.error(error.response?.data?.message || 'Failed to save config');
     } finally {
       setConfigLoading(false);
+    }
+  };
+
+  const handleAddLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await axios.post('/api/attendance/locations', {
+        name: locName,
+        latitude: Number(locLat),
+        longitude: Number(locLng),
+        radiusMeters: Number(locRadius),
+        isActive: true
+      });
+      toast.success('Office location updated!');
+      setShowLocationForm(false);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update location');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAddDept = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await axios.post('/api/departments', { name: deptName, code: deptCode });
+      toast.success('Department added!');
+      setShowDeptForm(false);
+      setDeptName(''); setDeptCode('');
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to add department');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteDept = async (id: string) => {
+    try {
+      await axios.delete(`/api/departments/${id}`);
+      toast.success('Department removed');
+      fetchData();
+    } catch (error: any) {
+      toast.error('Failed to remove department');
     }
   };
 
@@ -402,6 +467,105 @@ const AdminSettings = () => {
             </div>
           )) : (
             <p className="text-center text-sm text-gray-400 py-8">No holidays added yet.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Office Location Management */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-semibold text-gray-900 flex items-center text-sm"><MapPin className="h-4 w-4 mr-2 text-gray-400" /> Office Geo-Fence</h3>
+          <button onClick={() => setShowLocationForm(!showLocationForm)} className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center">
+            {showLocationForm ? 'Cancel' : <><Plus className="h-4 w-4 mr-1" /> Set Location</>}
+          </button>
+        </div>
+
+        {showLocationForm && (
+          <form onSubmit={handleAddLocation} className="mb-6 bg-gray-50 rounded-lg p-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Office Name</label>
+                <input type="text" required value={locName} onChange={e => setLocName(e.target.value)} placeholder="Main Office" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Radius (Meters)</label>
+                <input type="number" required value={locRadius} onChange={e => setLocRadius(e.target.value)} placeholder="200" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Latitude</label>
+                <input type="number" step="any" required value={locLat} onChange={e => setLocLat(e.target.value)} placeholder="12.9716" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Longitude</label>
+                <input type="number" step="any" required value={locLng} onChange={e => setLocLng(e.target.value)} placeholder="77.5946" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+              </div>
+            </div>
+            <button type="submit" disabled={submitting} className="w-full bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              {submitting ? 'Saving...' : 'Set Active Location'}
+            </button>
+          </form>
+        )}
+
+        <div className="space-y-2">
+          {locations.length > 0 ? locations.map((loc: any) => (
+            <div key={loc._id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 bg-gray-50">
+              <div className="flex items-center">
+                <div className={`p-2 rounded-lg mr-3 ${loc.isActive ? 'bg-emerald-100' : 'bg-gray-100'}`}>
+                  <MapPin className={`h-4 w-4 ${loc.isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
+                </div>
+                <div>
+                   <p className="text-sm font-semibold text-gray-900">{loc.name} {loc.isActive && <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full uppercase">Active</span>}</p>
+                   <p className="text-xs text-gray-500">{loc.latitude}, {loc.longitude} • {loc.radiusMeters}m radius</p>
+                </div>
+              </div>
+            </div>
+          )) : (
+            <p className="text-center text-sm text-gray-400 py-4">No office locations configured.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Department Management */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-semibold text-gray-900 flex items-center text-sm"><Building className="h-4 w-4 mr-2 text-gray-400" /> Departments</h3>
+          <button onClick={() => setShowDeptForm(!showDeptForm)} className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center">
+            {showDeptForm ? 'Cancel' : <><Plus className="h-4 w-4 mr-1" /> Add Dept</>}
+          </button>
+        </div>
+
+        {showDeptForm && (
+          <form onSubmit={handleAddDept} className="mb-6 bg-gray-50 rounded-lg p-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Dept Name</label>
+                <input type="text" required value={deptName} onChange={e => setDeptName(e.target.value)} placeholder="e.g. Engineering" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Code (Optional)</label>
+                <input type="text" value={deptCode} onChange={e => setDeptCode(e.target.value)} placeholder="ENG" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+              </div>
+            </div>
+            <button type="submit" disabled={submitting} className="w-full bg-primary-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50">
+              {submitting ? 'Adding...' : 'Add Department'}
+            </button>
+          </form>
+        )}
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {departments.length > 0 ? departments.map((d: any) => (
+            <div key={d._id} className="p-3 rounded-lg border border-gray-100 flex items-center justify-between group bg-gray-50">
+              <div className="flex items-center overflow-hidden">
+                <div className="h-8 w-8 bg-white border border-gray-200 rounded text-xs font-bold flex items-center justify-center shrink-0 mr-2 text-gray-400">{d.code || d.name.slice(0, 2).toUpperCase()}</div>
+                <div className="truncate text-sm font-medium text-gray-700">{d.name}</div>
+              </div>
+              <button onClick={() => handleDeleteDept(d._id)} className="p-1 text-gray-300 hover:text-red-500 group-hover:block transition-all"><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>
+          )) : (
+            <p className="col-span-full text-center text-sm text-gray-400 py-4">No departments added yet.</p>
           )}
         </div>
       </div>
