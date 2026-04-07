@@ -7,6 +7,7 @@ import Employees from './pages/admin/Employees';
 import AttendanceRecords from './pages/admin/AttendanceRecords';
 import PayrollLeave from './pages/admin/PayrollLeave';
 import AttendanceRequests from './pages/admin/AttendanceRequests';
+import Assignments from './pages/admin/Assignments';
 import AdminSettings from './pages/admin/Settings';
 import EmployeeDashboard from './pages/employee/Dashboard';
 import Attendance from './pages/employee/Attendance';
@@ -61,6 +62,7 @@ const App = () => {
             <Route path="attendance" element={<AttendanceRecords />} />
             <Route path="requests" element={<AttendanceRequests />} />
             <Route path="payroll" element={<PayrollLeave />} />
+            <Route path="assignments" element={<Assignments />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
 
