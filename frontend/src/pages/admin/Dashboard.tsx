@@ -72,8 +72,8 @@ const AdminDashboard = () => {
           <p className="text-sm text-gray-500 mt-0.5">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
         <div className="flex items-center space-x-2 mt-3 sm:mt-0 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
-          <button onClick={() => navigate('/admin/assignments')} className="inline-flex items-center px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-100 transition-all shrink-0">
-            <MapPin className="h-3.5 w-3.5 mr-1.5" /> Assignments
+          <button onClick={() => navigate('/admin/branches')} className="inline-flex items-center px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-100 transition-all shrink-0">
+            <MapPin className="h-3.5 w-3.5 mr-1.5" /> Branch Hub
           </button>
           <button onClick={() => navigate('/admin/payroll')} className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary-700 transition-all shadow-sm shrink-0">
             <FileText className="h-3.5 w-3.5 mr-1.5" /> Payroll
@@ -179,7 +179,7 @@ const AdminDashboard = () => {
            </div>
            <div className="space-y-4">
               {locationStats.length > 0 ? locationStats.map((loc, idx) => (
-                <div key={idx} className="group cursor-pointer hover:bg-gray-50 p-2 rounded-xl transition-all" onClick={() => navigate('/admin/assignments')}>
+                <div key={idx} className="group cursor-pointer hover:bg-gray-50 p-2 rounded-xl transition-all" onClick={() => navigate('/admin/branches')}>
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center">
                       <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 mr-3">

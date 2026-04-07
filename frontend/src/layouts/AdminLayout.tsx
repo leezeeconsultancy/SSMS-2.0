@@ -26,7 +26,7 @@ export const AdminLayout = () => {
     { name: 'Attendance', path: '/admin/attendance', icon: Calendar },
     { name: 'Requests', path: '/admin/requests', icon: MessageSquare },
     { name: 'Payroll & Leave', path: '/admin/payroll', icon: FileText },
-    { name: 'Assignments', path: '/admin/assignments', icon: MapPin },
+    { name: 'Branch Hub', path: '/admin/branches', icon: MapPin },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ];
 
