@@ -1,17 +1,7 @@
 import cron from 'node-cron';
 import { Employee } from '../models/Employee';
 import { DailyQR, generateDailyToken } from '../models/DailyQR';
-
-/**
- * Returns today's date string in IST (Asia/Kolkata) as YYYY-MM-DD.
- * Server runs in UTC — this ensures QR tokens are generated for the correct IST date.
- */
-const getTodayStringIST = (): string => {
-  const now = new Date();
-  const istStr = now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
-  const istDate = new Date(istStr);
-  return `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`;
-};
+import { getTodayStringIST } from '../utils/dateUtils';
 
 // Auto-generate QR tokens for all active employees at midnight IST
 export const startDailyQRCron = () => {

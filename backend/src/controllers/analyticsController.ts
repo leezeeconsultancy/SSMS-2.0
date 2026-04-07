@@ -3,13 +3,13 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { Employee } from '../models/Employee';
 import { Attendance } from '../models/Attendance';
 import { SystemConfig } from '../models/SystemConfig';
+import { getISTMonthBoundaries } from '../utils/dateUtils';
 
 export const getLeaderboard = async (req: AuthRequest, res: Response) => {
   try {
     const { month, year } = req.query;
-
-    const startDate = new Date(Number(year), Number(month) - 1, 1);
-    const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59);
+ 
+    const { start: startDate, end: endDate } = getISTMonthBoundaries(Number(year), Number(month));
 
     const employees = await Employee.find({});
     const leaderBoard: any[] = [];
@@ -66,8 +66,7 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
 export const getAbsenceAnalytics = async (req: AuthRequest, res: Response) => {
   try {
     const { month, year } = req.query;
-    const startDate = new Date(Number(year), Number(month) - 1, 1);
-    const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59);
+    const { start: startDate, end: endDate } = getISTMonthBoundaries(Number(year), Number(month));
 
     const records = await Attendance.find({
       date: { $gte: startDate, $lte: endDate },

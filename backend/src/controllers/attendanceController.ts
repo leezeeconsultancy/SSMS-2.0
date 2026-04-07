@@ -7,6 +7,7 @@ import { DailyQR, generateDailyToken } from '../models/DailyQR';
 import { AttendanceRequest } from '../models/AttendanceRequest';
 import { OfficeLocation } from '../models/OfficeLocation';
 import { SystemConfig } from '../models/SystemConfig';
+import { getISTComponents, getISTStartOfDay, getTodayStringIST } from '../utils/dateUtils';
 
 // ═══════════════════════════════════════════════════════════
 //  VALIDATION CONFIG — Anti-Manipulation Rules
@@ -31,51 +32,6 @@ const VALIDATION_RULES = {
 
   // Overtime Cap
   MAX_OVERTIME_HOURS: 4,       // Cap overtime at 4 hours per day (no one works 18 hours)
-};
-
-// ═══════════════════════════════════════════════════════════
-//  IST TIMEZONE HELPERS
-//  Server runs in UTC — all business logic must use IST
-//  (Asia/Kolkata, UTC+5:30)
-// ═══════════════════════════════════════════════════════════
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
-
-/**
- * Returns current IST time components for business logic comparisons.
- * Uses Intl timezone conversion for accuracy (handles DST edge cases).
- */
-const getISTComponents = () => {
-  const now = new Date();
-  const istStr = now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
-  const istDate = new Date(istStr);
-  return {
-    hours: istDate.getHours(),
-    minutes: istDate.getMinutes(),
-    day: istDate.getDay(), // 0 = Sunday
-    date: istDate.getDate(),
-    month: istDate.getMonth(),
-    year: istDate.getFullYear(),
-    dateString: `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`,
-  };
-};
-
-/**
- * Returns UTC Date representing IST midnight (start of today in IST).
- * Used for MongoDB date range queries.
- */
-const getISTStartOfDay = (): Date => {
-  const ist = getISTComponents();
-  // Create UTC date for IST midnight, then subtract offset to get true UTC equivalent
-  const utcMidnight = new Date(Date.UTC(ist.year, ist.month, ist.date, 0, 0, 0, 0));
-  utcMidnight.setTime(utcMidnight.getTime() - IST_OFFSET_MS);
-  return utcMidnight;
-};
-
-/**
- * Returns today's date in IST as YYYY-MM-DD string.
- */
-const getTodayString = (): string => {
-  return getISTComponents().dateString;
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -121,7 +77,7 @@ export const requestLateCheckIn = async (req: AuthRequest, res: Response) => {
     if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
 
     const { reason } = req.body;
-    const today = getTodayString();
+    const today = getTodayStringIST();
 
     const existing = await AttendanceRequest.findOne({ employeeId: employee._id, date: today });
     if (existing) return res.status(400).json({ message: 'Request already submitted for today.' });
@@ -174,7 +130,7 @@ export const updateRequestStatus = async (req: AuthRequest, res: Response) => {
 // ═══════════════════════════════════════════════════════════
 export const generateDailyQRs = async (req: AuthRequest, res: Response) => {
   try {
-    const today = getTodayString();
+    const today = getTodayStringIST();
     const employees = await Employee.find({ status: 'Active' });
 
     const results: any[] = [];
@@ -202,8 +158,8 @@ export const getMyDailyQR = async (req: AuthRequest, res: Response) => {
   try {
     const employee = await Employee.findOne({ userId: req.user!._id });
     if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
-
-    const today = getTodayString();
+ 
+    const today = getTodayStringIST();
     let qr = await DailyQR.findOne({ employeeId: employee._id, date: today });
 
     if (!qr) {

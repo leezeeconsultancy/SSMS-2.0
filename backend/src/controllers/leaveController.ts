@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { Leave, ILeave } from '../models/Leave';
 import { Employee } from '../models/Employee';
 import { SystemConfig } from '../models/SystemConfig';
+import { getISTStartOfDay } from '../utils/dateUtils';
 
 export const applyLeave = async (req: AuthRequest, res: Response) => {
   const { startDate, endDate, leaveType, reason } = req.body;
@@ -20,8 +21,7 @@ export const applyLeave = async (req: AuthRequest, res: Response) => {
     // Validation: No past date leave (configurable)
     const config = await SystemConfig.findOne() || await SystemConfig.create({});
     if (!config.allowPastDateLeave) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const today = getISTStartOfDay();
       if (new Date(startDate) < today) {
         return res.status(400).json({ message: 'Cannot apply leave for past dates' });
       }

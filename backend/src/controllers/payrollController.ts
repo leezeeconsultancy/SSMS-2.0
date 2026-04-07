@@ -4,6 +4,7 @@ import { SalaryRule } from '../models/SalaryRule';
 import { Employee } from '../models/Employee';
 import { Attendance } from '../models/Attendance';
 import { SystemConfig } from '../models/SystemConfig';
+import { getISTMonthBoundaries, getISTComponents } from '../utils/dateUtils';
 
 // Basic CRUD for Salary Rules
 export const createSalaryRule = async (req: AuthRequest, res: Response) => {
@@ -53,9 +54,8 @@ export const deleteSalaryRule = async (req: AuthRequest, res: Response) => {
 const computeSalary = async (employeeId: string, month: number, year: number) => {
   const employee = await Employee.findById(employeeId);
   if (!employee) throw new Error('Employee not found');
-
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0, 23, 59, 59);
+ 
+  const { start: startDate, end: endDate } = getISTMonthBoundaries(year, month);
 
   const attendanceRecords = await Attendance.find({
     employeeId: employee._id,
@@ -138,9 +138,10 @@ export const getMyPayslip = async (req: AuthRequest, res: Response) => {
   try {
     const employee = await Employee.findOne({ userId: req.user!._id });
     if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
-
-    const m = month ? Number(month) : new Date().getMonth() + 1;
-    const y = year ? Number(year) : new Date().getFullYear();
+ 
+    const ist = getISTComponents();
+    const m = month ? Number(month) : ist.month + 1;
+    const y = year ? Number(year) : ist.year;
 
     const result = await computeSalary(employee._id.toString(), m, y);
     return res.json(result);
