@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Fingerprint, LogIn, LogOut as LogOutIcon, CheckCircle2, Clock, Loader2, DoorOpen, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Fingerprint, LogIn, LogOut as LogOutIcon, CheckCircle2, Clock, Loader2, DoorOpen, MessageSquare, AlertTriangle, MapPin } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 const Attendance = () => {
@@ -19,10 +19,34 @@ const Attendance = () => {
   const [config, setConfig] = useState<any>(null);
 
   // Live clock
+  const [distanceInfo, setDistanceInfo] = useState<any>(null);
+
+  // Live clock and distance check
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    const distTimer = setInterval(() => checkLiveDistance(), 15000); // Check distance every 15s
+    checkLiveDistance();
+    return () => {
+      clearInterval(timer);
+      clearInterval(distTimer);
+    };
   }, []);
+
+  const checkLiveDistance = async () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await axios.get(`/api/attendance/check-location?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}`);
+          setDistanceInfo(res.data);
+        } catch (e) {
+          console.error('Distance check failed');
+        }
+      },
+      null,
+      { enableHighAccuracy: true }
+    );
+  };
 
   const fetchData = async () => {
     try {
@@ -81,10 +105,14 @@ const Attendance = () => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          () => resolve({ lat: 0, lng: 0 }),
-          { timeout: 5000 }
+          (error) => {
+            toast.error(`GPS Error: ${error.message}. Please enable high-accuracy location.`);
+            resolve({ lat: 0, lng: 0 });
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
       } else {
+        toast.error('Geolocation is not supported by your browser');
         resolve({ lat: 0, lng: 0 });
       }
     });
@@ -261,6 +289,29 @@ const Attendance = () => {
                 <p className="mt-3 text-xs font-bold text-rose-700">❌ Request Rejected by Admin</p>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Geofence Status ═══ */}
+      {distanceInfo && todayStatus === 'none' && (
+        <div className={`silk-card border-none p-4 flex items-center justify-between animate-fade-in ${
+          distanceInfo.withinRange ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-xl ${distanceInfo.withinRange ? 'bg-emerald-100' : 'bg-rose-100'}`}>
+              <MapPin className={`h-4 w-4 ${distanceInfo.withinRange ? 'text-emerald-500' : 'text-rose-500'}`} />
+            </div>
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-widest">{distanceInfo.officeName || 'Checking Location...'}</p>
+              <p className="text-[10px] font-medium opacity-70">
+                {distanceInfo.withinRange ? 'You are within office range' : `You are ${distanceInfo.distance}m away (Max ${distanceInfo.radiusMeters}m)`}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end">
+             <div className={`h-2.5 w-2.5 rounded-full ${distanceInfo.withinRange ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+             <p className="text-[9px] font-bold mt-1 uppercase tracking-tighter">{distanceInfo.withinRange ? 'IN RANGE' : 'OUTSIDE'}</p>
           </div>
         </div>
       )}

@@ -41,6 +41,7 @@ const AdminSettings = () => {
   const [showDeptForm, setShowDeptForm] = useState(false);
   const [deptName, setDeptName] = useState('');
   const [deptCode, setDeptCode] = useState('');
+  const [gpsLoading, setGpsLoading] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -131,6 +132,26 @@ const AdminSettings = () => {
     } catch (error: any) {
       toast.error('Failed to update rule');
     }
+  };
+
+  const handleGetGPS = () => {
+    if (!navigator.geolocation) {
+      return toast.error('Geolocation is not supported by your browser');
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocLat(String(position.coords.latitude));
+        setLocLng(String(position.coords.longitude));
+        setGpsLoading(false);
+        toast.success('Live GPS coordinates captured!');
+      },
+      (error) => {
+        setGpsLoading(false);
+        toast.error(`GPS Error: ${error.message}`);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const handleSaveConfig = async () => {
@@ -504,13 +525,30 @@ const AdminSettings = () => {
 
         {showLocationForm && (
           <form onSubmit={handleAddLocation} className="mb-6 bg-gray-50 rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between mb-2">
+               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Office Details</p>
+               <button 
+                type="button" 
+                onClick={handleGetGPS}
+                disabled={gpsLoading}
+                className="text-[10px] bg-primary-50 text-primary-600 px-2 py-0.5 rounded font-bold hover:bg-primary-100 flex items-center"
+               >
+                 {gpsLoading ? <Loader2 className="h-2.5 w-2.5 mr-1 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5 mr-1" />}
+                 Get Live GPS
+               </button>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Office Name</label>
                 <input type="text" required value={locName} onChange={e => setLocName(e.target.value)} placeholder="Main Office" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Radius (Meters)</label>
+              <div className="group relative">
+                <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center">
+                    Radius (Meters)
+                    <Tooltip content="Max distance for attendance. Standard is 200m." position="top">
+                        <Info className="h-2.5 w-2.5 ml-1 text-gray-400" />
+                    </Tooltip>
+                </label>
                 <input type="number" required value={locRadius} onChange={e => setLocRadius(e.target.value)} placeholder="200" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
               </div>
             </div>
