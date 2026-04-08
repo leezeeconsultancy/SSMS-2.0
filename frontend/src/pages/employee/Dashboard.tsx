@@ -4,8 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { 
   Clock, CalendarCheck, TrendingUp, AlertTriangle, 
-  IndianRupee, Briefcase, History, CheckCircle2, 
-  CalendarDays, Info, ArrowRight, Loader2
+  IndianRupee, Briefcase, History,
+  CalendarDays, ArrowRight, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

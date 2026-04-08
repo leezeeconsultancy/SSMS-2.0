@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Search, Edit2, Trash2, Mail, Phone, X, Loader2, CheckCircle, Clock, AlertTriangle, Ban, RefreshCw, MapPin } from 'lucide-react';
+import { Users, Plus, Search, Edit2, Trash2, Mail, Phone, X, Loader2, CheckCircle, Clock, AlertTriangle, Ban, RefreshCw, MapPin } from 'lucide-react';
 import Tooltip from '../../components/Tooltip';
 import toast, { Toaster } from 'react-hot-toast';
 

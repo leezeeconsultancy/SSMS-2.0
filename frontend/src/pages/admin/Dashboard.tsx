@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Users, UserCheck, UserX, AlertCircle, CheckCircle2, IndianRupee, TrendingUp, Settings, FileText, Info, MapPin } from 'lucide-react';
-import SilkTooltip from '../../components/Tooltip';
+import { Users, UserCheck, UserX, AlertCircle, CheckCircle2, FileText, MapPin, MessageSquare } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
   const [employees, setEmployees] = useState<any[]>([]);
   const [todayAttendance, setTodayAttendance] = useState<any[]>([]);
-  const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -18,15 +16,13 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const [empRes, attRes, locRes, reqRes] = await Promise.allSettled([
+        const [empRes, attRes, reqRes] = await Promise.allSettled([
           axios.get('/api/employees'),
           axios.get('/api/attendance'),
-          axios.get('/api/attendance/office-locations'),
           axios.get('/api/attendance/requests'),
         ]);
 
         if (empRes.status === 'fulfilled') setEmployees(empRes.value.data);
-        if (locRes.status === 'fulfilled') setLocations(locRes.value.data);
         if (reqRes.status === 'fulfilled') setRequests(reqRes.value.data.filter((r: any) => r.status === 'Pending'));
         
         if (attRes.status === 'fulfilled') {
