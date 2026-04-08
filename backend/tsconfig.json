@@ -6,7 +6,6 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "lib": ["ES2020", "dom"],
-    "types": ["node"],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
