@@ -7,7 +7,7 @@ import { DailyQR, generateDailyToken } from '../models/DailyQR';
 import { AttendanceRequest } from '../models/AttendanceRequest';
 import { OfficeLocation } from '../models/OfficeLocation';
 import { SystemConfig } from '../models/SystemConfig';
-import { formatISTTime, getISTComponents, getISTStartOfDay, getTodayStringIST } from '../utils/dateUtils';
+import { formatTZTime, getTimeZoneFromCoords, getTZComponents, getTZStartOfDay, getTodayStringTZ, getISTComponents, getISTStartOfDay, getTodayStringIST } from '../utils/dateUtils';
 
 // ═══════════════════════════════════════════════════════════
 //  VALIDATION CONFIG — Anti-Manipulation Rules
@@ -57,12 +57,12 @@ const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-// Check if today is a Sunday (using IST day)
-const isSunday = (): boolean => getISTComponents().day === 0;
+// Check if today is a Sunday (using specific TZ)
+const isSunday = (timeZone: string = 'Asia/Kolkata'): boolean => getTZComponents(new Date(), timeZone).day === 0;
 
-// Check if today is a holiday (using IST day boundaries)
-const isHoliday = async (): Promise<boolean> => {
-  const istStartOfDay = getISTStartOfDay();
+// Check if today is a holiday (using specific TZ day boundaries)
+const isHoliday = async (timeZone: string = 'Asia/Kolkata'): Promise<boolean> => {
+  const istStartOfDay = getTZStartOfDay(new Date(), timeZone);
   const istEndOfDay = new Date(istStartOfDay.getTime() + 24 * 60 * 60 * 1000);
   const holiday = await Holiday.findOne({ date: { $gte: istStartOfDay, $lt: istEndOfDay } });
   return !!holiday;
@@ -190,10 +190,11 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
     const user = employee.userId as any;
     const assignedOffice = employee.assignedLocation as any;
 
-    // Use SERVER time only
+    // Use SERVER time only — detect user timezone from coordinates
     const serverNow = new Date();
-    const ist = getISTComponents();
-    const today = ist.dateString;
+    const userTimeZone = getTimeZoneFromCoords(latitude, longitude);
+    const tzComponents = getTZComponents(serverNow, userTimeZone);
+    const today = tzComponents.dateString;
     const flags: string[] = [];
 
     // 1. Device Authorization
@@ -202,21 +203,19 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
     }
 
     // 2. Holiday Check
-    if (await isHoliday()) {
+    if (await isHoliday(userTimeZone)) {
       return res.status(403).json({ message: '🚫 Today is a holiday.', validation: 'HOLIDAY_BLOCKED' });
     }
 
     // 3. Personalized Shift & Geo-Fence Check
     const [shiftH, shiftM] = (employee.shiftStartTime || "09:00").split(':').map(Number);
-    const shiftStart = new Date(serverNow);
-    shiftStart.setHours(shiftH, shiftM, 0, 0);
+    const shiftStart = new Date(getTZStartOfDay(serverNow, userTimeZone).getTime() + (shiftH * 3600000) + (shiftM * 60000));
 
-    const checkInStart = new Date(shiftStart);
-    checkInStart.setHours(shiftStart.getHours() - 1); 
+    const checkInStart = new Date(shiftStart.getTime() - (1 * 60 * 60 * 1000)); // 1 hour before
 
     if (serverNow < checkInStart) {
       return res.status(403).json({ 
-        message: `🚫 Too early! Check-in opens at ${checkInStart.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}.`,
+        message: `🚫 Too early! Check-in opens at ${formatTZTime(checkInStart, userTimeZone)}.`,
         validation: 'TOO_EARLY_CHECKIN' 
       });
     }
@@ -241,13 +240,12 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
     }
 
     // 5. Duplicate Check
-    const startOfDay = getISTStartOfDay();
+    const startOfDay = getTZStartOfDay(serverNow, userTimeZone);
     const existing = await Attendance.findOne({ employeeId: employee._id, date: { $gte: startOfDay } });
     if (existing) return res.status(400).json({ message: '🚫 Already checked in today.', validation: 'DUPLICATE_CHECKIN' });
 
     // Determine Status (15 min grace)
-    const lateThreshold = new Date(shiftStart);
-    lateThreshold.setMinutes(shiftStart.getMinutes() + 15);
+    const lateThreshold = new Date(shiftStart.getTime() + (15 * 60 * 1000));
     const status = serverNow > lateThreshold ? 'Late' : 'Present';
 
     const attendance = await Attendance.create({
@@ -267,7 +265,7 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
     await qr.save();
 
     return res.status(201).json({ 
-      message: `✅ Check-in successful (${status}) at ${formatISTTime(serverNow)} (Shift: ${employee.shiftStartTime})`, 
+      message: `✅ Check-in successful (${status}) at ${formatTZTime(serverNow, userTimeZone)} (Shift: ${employee.shiftStartTime})`, 
       attendance 
     });
   } catch (error: any) {
@@ -298,7 +296,10 @@ export const checkOut = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const startOfDay = getISTStartOfDay();
+    // Use SERVER time only — detect user timezone for validations
+    const serverNow = new Date();
+    const userTimeZone = getTimeZoneFromCoords(latitude, longitude);
+    const startOfDay = getTZStartOfDay(serverNow, userTimeZone);
 
     const attendance = await Attendance.findOne({
       employeeId: employee._id,
@@ -312,11 +313,9 @@ export const checkOut = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: '🚫 Already checked out today. Cannot check out twice.', validation: 'DUPLICATE_CHECKOUT' });
     }
 
-    // Use SERVER time only — IST for validations
-    const serverNow = new Date();
-    const ist = getISTComponents();
-    const currentHour = ist.hours;
-    const currentMinute = ist.minutes;
+    const tzComponents = getTZComponents(serverNow, userTimeZone);
+    const currentHour = tzComponents.hours;
+    const currentMinute = tzComponents.minutes;
     const flags: string[] = [...(attendance.flags || [])];
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -427,7 +426,7 @@ export const checkOut = async (req: AuthRequest, res: Response) => {
 
     const flagMsg = flags.length > 0 ? ` ⚠️ ${flags.length} flag(s) recorded.` : '';
     return res.json({
-      message: `✅ Check-out at ${serverNow.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}. Worked ${validatedHours}h (required: ${requiredHours}h).${flagMsg}`,
+      message: `✅ Check-out at ${formatTZTime(serverNow, userTimeZone)}. Worked ${validatedHours}h (required: ${requiredHours}h).${flagMsg}`,
       attendance,
     });
   } catch (error: any) {

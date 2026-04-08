@@ -52,7 +52,19 @@ const App = () => {
 
   return (
     <AuthProvider>
-      <Toaster position="top-center" />
+      {/* Toaster for Mobile-Centric Positioning */}
+      <Toaster 
+        position="bottom-center" 
+        toastOptions={{
+          style: {
+            borderRadius: '16px',
+            background: '#333',
+            color: '#fff',
+            fontSize: '14px',
+            marginBottom: '80px' // Lift above bottom nav
+          }
+        }}
+      />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />

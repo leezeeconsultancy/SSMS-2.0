@@ -169,88 +169,94 @@ const Employees = () => {
         </div>
       </div>
 
-      <div className="bg-white shadow-sm rounded-lg border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white shadow-sm rounded-2xl border border-gray-100 overflow-hidden relative">
+        <div className="overflow-x-auto pb-2 scrollbar-hide">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50/80 backdrop-blur-sm">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assignment</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payout</th>
-                <th className="px-6 py-3"><span className="sr-only">Actions</span></th>
+                <th className="px-4 sm:px-6 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest sticky left-0 z-20 bg-gray-50/90 shadow-[2px_0_8px_-3px_rgba(0,0,0,0.1)]">Employee</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Assignment</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Payout</th>
+                <th className="px-4 sm:px-6 py-3"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-100 bg-white">
               {loading ? (
-                <tr><td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-sm font-bold text-gray-400 uppercase tracking-widest animate-pulse">Loading Staff...</td></tr>
               ) : filteredEmployees.length > 0 ? filteredEmployees.map((person) => (
-                <tr key={person._id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                <tr key={person._id} className="hover:bg-gray-50/50 transition-colors group">
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap sticky left-0 z-10 bg-white/90 backdrop-blur-md shadow-[2px_0_8px_-3px_rgba(0,0,0,0.05)] group-hover:bg-gray-50/90 transition-colors">
                     <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold uppercase">{person.name?.charAt(0)}</div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{person.name}</div>
-                        <div className="text-xs text-gray-500">{person.employeeId}</div>
+                      <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary-100 flex items-center justify-center text-primary-700 font-black uppercase text-lg shrink-0">{person.name?.charAt(0)}</div>
+                      <div className="ml-3 sm:ml-4">
+                        <div className="text-sm font-black text-gray-900 truncate max-w-[120px] sm:max-w-none">{person.name}</div>
+                        <div className="text-[10px] font-bold text-gray-400 tracking-wider mt-0.5">{person.employeeId}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-col space-y-0.5">
-                      <span className="flex items-center text-sm text-gray-600"><Mail className="mr-1.5 h-3.5 w-3.5 text-gray-400" />{person.email}</span>
-                      <span className="flex items-center text-sm text-gray-600"><Phone className="mr-1.5 h-3.5 w-3.5 text-gray-400" />{person.phone}</span>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                    <div className="flex flex-col space-y-1.5">
+                      <span className="flex items-center text-xs font-medium text-gray-600"><Mail className="mr-2 h-3.5 w-3.5 text-gray-400 shrink-0" />{person.email}</span>
+                      <span className="flex items-center text-xs font-medium text-gray-600"><Phone className="mr-2 h-3.5 w-3.5 text-gray-400 shrink-0" />{person.phone}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{person.department}</div>
-                    <div className="flex items-center text-xs text-gray-500 mt-0.5">
-                      <MapPin className="h-3 w-3 mr-1" />
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                    <div className="text-xs font-black text-gray-800">{person.department}</div>
+                    <div className="flex items-center text-[10px] font-bold text-gray-500 mt-1 uppercase tracking-tight">
+                      <MapPin className="h-3 w-3 mr-1 text-indigo-400" />
                       {typeof person.assignedLocation === 'object' ? person.assignedLocation?.name : 'Default Office'}
                     </div>
-                    <div className="flex items-center text-[10px] text-primary-600 mt-1 font-bold">
-                        <Clock className="h-2.5 w-2.5 mr-1" />
+                    <div className="flex items-center text-[10px] text-primary-600 mt-1.5 font-black bg-primary-50 w-fit px-2 py-0.5 rounded-lg">
+                        <Clock className="h-3 w-3 mr-1 text-primary-500" />
                         {person.shiftStartTime} - {person.shiftEndTime}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${person.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{person.status}</span>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-xl ${person.status === 'Active' ? 'bg-emerald-50 border border-emerald-100 text-emerald-700' : 'bg-red-50 border border-red-100 text-red-700'}`}>{person.status}</span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                     {(() => {
                       const status = (person as any).payrollStatus || 'Pending';
                       const config: Record<string, { bg: string; text: string; icon: any; pulse?: boolean }> = {
-                        'Paid':       { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: CheckCircle },
-                        'Pending':    { bg: 'bg-amber-100',   text: 'text-amber-700',   icon: Clock, pulse: true },
-                        'Processing': { bg: 'bg-blue-100',    text: 'text-blue-700',    icon: RefreshCw, pulse: true },
-                        'On Hold':    { bg: 'bg-orange-100',  text: 'text-orange-700',  icon: AlertTriangle },
-                        'Cancelled':  { bg: 'bg-red-100',     text: 'text-red-700',     icon: Ban },
+                        'Paid':       { bg: 'bg-emerald-50 border-emerald-100', text: 'text-emerald-700', icon: CheckCircle },
+                        'Pending':    { bg: 'bg-amber-50 border-amber-100',   text: 'text-amber-700',   icon: Clock, pulse: true },
+                        'Processing': { bg: 'bg-blue-50 border-blue-100',    text: 'text-blue-700',    icon: RefreshCw, pulse: true },
+                        'On Hold':    { bg: 'bg-orange-50 border-orange-100',  text: 'text-orange-700',  icon: AlertTriangle },
+                        'Cancelled':  { bg: 'bg-red-50 border-red-100',     text: 'text-red-700',     icon: Ban },
                       };
                       const c = config[status] || config['Pending'];
                       const Icon = c.icon;
                       return (
                         <Tooltip content={`Current payroll status: ${status}`} position="top">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center w-fit cursor-default ${c.bg} ${c.text} ${c.pulse ? 'animate-pulse' : ''}`}>
-                            <Icon className="h-2.5 w-2.5 mr-1" />
+                          <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-xl border flex items-center w-fit cursor-default shadow-sm ${c.bg} ${c.text} ${c.pulse ? 'animate-pulse' : ''}`}>
+                            <Icon className="h-3 w-3 mr-1.5" />
                             {status}
                           </span>
                         </Tooltip>
                       );
                     })()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
                     <div className="flex justify-end space-x-2">
+                       {person.phone && (
+                         <a href={`tel:${person.phone}`} className="p-2 sm:p-2.5 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 lg:hidden shadow-sm active:scale-95 transition-transform"><Phone className="h-4 w-4" /></a>
+                       )}
                       <Tooltip content="Edit Employee" position="top">
-                        <button onClick={() => openEditModal(person)} className="p-1.5 rounded-md bg-indigo-50 text-indigo-600 hover:bg-indigo-100"><Edit2 className="h-4 w-4" /></button>
+                        <button onClick={() => openEditModal(person)} className="p-2 sm:p-2.5 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 shadow-sm active:scale-95 transition-transform"><Edit2 className="h-4 w-4" /></button>
                       </Tooltip>
                       <Tooltip content="Remove Employee" position="top">
-                        <button onClick={() => handleDelete(person._id, person.name)} className="p-1.5 rounded-md bg-red-50 text-red-600 hover:bg-red-100"><Trash2 className="h-4 w-4" /></button>
+                        <button onClick={() => handleDelete(person._id, person.name)} className="p-2 sm:p-2.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 shadow-sm active:scale-95 transition-transform"><Trash2 className="h-4 w-4" /></button>
                       </Tooltip>
                     </div>
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">{searchTerm ? 'No employees match your search.' : 'No employees yet. Click "Add Employee" to create one.'}</td></tr>
+                <tr><td colSpan={6} className="px-6 py-16 text-center">
+                  <Users className="h-8 w-8 text-gray-200 mx-auto mb-3" />
+                  <p className="text-sm font-bold text-gray-400">{searchTerm ? 'No employees match your search.' : 'No employees yet. Click "Add Employee" to create one.'}</p>
+                </td></tr>
               )}
             </tbody>
           </table>

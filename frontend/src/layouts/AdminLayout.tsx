@@ -31,7 +31,7 @@ export const AdminLayout = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50 text-gray-900 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 text-gray-900 overflow-hidden relative">
       {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
         <div 
@@ -47,7 +47,7 @@ export const AdminLayout = () => {
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-primary-600">SSMS Admin</h1>
+          <h1 className="text-xl font-black text-primary-600 tracking-tighter">SSMS Admin</h1>
           <button className="lg:hidden p-2 text-gray-400" onClick={() => setIsMobileMenuOpen(false)}>
             <X className="h-5 w-5" />
           </button>
@@ -61,7 +61,7 @@ export const AdminLayout = () => {
                 key={link.name} 
                 to={link.path} 
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+                className={`flex items-center px-4 py-3 rounded-xl text-sm font-bold transition-all ${isActive ? 'bg-primary-50 text-primary-600 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
               >
                 <Icon className={`mr-3 h-5 w-5 ${isActive ? 'text-primary-600' : 'text-gray-400'}`} />
                 {link.name}
@@ -70,8 +70,8 @@ export const AdminLayout = () => {
           })}
         </nav>
         <div className="p-4 border-t border-gray-200">
-          <button onClick={handleLogout} className="flex items-center w-full px-4 py-3 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors">
-            <LogOut className="mr-3 h-5 w-5 text-red-500" />
+          <button onClick={handleLogout} className="flex items-center w-full px-4 py-3 text-sm font-bold text-rose-600 rounded-xl hover:bg-rose-50 transition-colors">
+            <LogOut className="mr-3 h-5 w-5 text-rose-500" />
             Sign Out
           </button>
         </div>
@@ -79,30 +79,62 @@ export const AdminLayout = () => {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 shrink-0">
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 shrink-0 sticky top-0 z-30">
           <div className="flex items-center">
             <button 
-              className="lg:hidden p-2 mr-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              className="lg:hidden p-2 mr-2 text-gray-600 hover:bg-gray-100 rounded-xl"
               onClick={() => setIsMobileMenuOpen(true)}
             >
               <Menu className="h-6 w-6" />
             </button>
-            <h2 className="text-lg lg:text-xl font-semibold text-gray-800 truncate">
+            <h2 className="text-lg lg:text-xl font-black text-gray-800 tracking-tight truncate">
               {navLinks.find(link => link.path === location.pathname)?.name || 'Dashboard'}
             </h2>
           </div>
           <div className="flex items-center space-x-2 lg:space-x-4">
-            <span className="hidden sm:inline text-sm text-gray-500">Welcome, {user?.name}</span>
-            <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold uppercase border-2 border-white shadow-sm">
+            <span className="hidden sm:inline text-sm font-bold text-gray-500">Hi, {user?.name.split(' ')[0]}</span>
+            <div className="h-9 w-9 rounded-xl bg-primary-600 flex items-center justify-center text-white font-black uppercase shadow-md shadow-primary-200">
               {user?.name.charAt(0)}
             </div>
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto w-full">
+        
+        {/* Scrollable Content with Safe Zone */}
+        <div className="flex-1 overflow-y-auto w-full pb-24 lg:pb-8">
           <div className="p-4 lg:p-8 max-w-7xl mx-auto">
             <Outlet />
           </div>
         </div>
+
+        {/* BOTTOM NAVIGATION (Mobile-Only) */}
+        <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-50">
+          <div className="bg-white/80 backdrop-blur-xl border border-white shadow-2xl shadow-indigo-200/50 rounded-[28px] p-2 flex items-center justify-around h-18">
+            {[navLinks[0], navLinks[1], navLinks[2], navLinks[5]].map((link) => {
+              const Icon = link.icon;
+              const isActive = location.pathname === link.path;
+              return (
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 relative ${
+                    isActive ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 -translate-y-1' : 'text-gray-400 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon className="h-5.5 w-5.5" strokeWidth={isActive ? 2.5 : 1.8} />
+                  {isActive && (
+                    <span className="text-[8px] font-black uppercase mt-1 tracking-tighter">{link.name.split(' ')[0]}</span>
+                  )}
+                </Link>
+              );
+            })}
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl text-gray-400 hover:bg-gray-50"
+            >
+              <Menu className="h-5.5 w-5.5" />
+            </button>
+          </div>
+        </nav>
       </main>
     </div>
   );

@@ -16,6 +16,8 @@ const Attendance = () => {
   const [requestReason, setRequestReason] = useState('');
   const [requestStatus, setRequestStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
   const [isLate, setIsLate] = useState(false);
+  const [isTooEarly, setIsTooEarly] = useState(false);
+  const [earlyLimitTime, setEarlyLimitTime] = useState('');
   const [config, setConfig] = useState<any>(null);
 
   // Live clock
@@ -50,10 +52,11 @@ const Attendance = () => {
 
   const fetchData = async () => {
     try {
-      const [attRes, reqRes, configRes] = await Promise.allSettled([
+      const [attRes, reqRes, configRes, profileRes] = await Promise.allSettled([
         axios.get('/api/attendance/me'),
         axios.get('/api/attendance/requests'),
         axios.get('/api/config'),
+        axios.get('/api/employees/me'),
       ]);
 
       let fetchedConfig: any = { checkInEndHour: 13 };
@@ -75,6 +78,18 @@ const Attendance = () => {
       const now = new Date();
       if (now.getHours() >= fetchedConfig.checkInEndHour && !todayRec) {
         setIsLate(true);
+      }
+
+      if (profileRes.status === 'fulfilled') {
+        const profile = profileRes.value.data;
+        const shiftStart = profile.shiftStartTime || "09:00";
+        const [h, m] = shiftStart.split(':').map(Number);
+        const limitDate = new Date();
+        limitDate.setHours(h - 1, m, 0, 0); // 1 hour before
+        setEarlyLimitTime(limitDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+        if (now < limitDate) {
+          setIsTooEarly(true);
+        }
       }
 
       if (reqRes.status === 'fulfilled') {
@@ -293,6 +308,21 @@ const Attendance = () => {
         </div>
       )}
 
+      {/* ═══ Too Early Alert ═══ */}
+      {isTooEarly && todayStatus === 'none' && (
+        <div className="silk-card border-slate-200 bg-slate-50/80 p-4 animate-scale-in">
+          <div className="flex items-start gap-3">
+            <div className="bg-slate-100 p-2 rounded-xl shrink-0">
+              <Clock className="h-4 w-4 text-slate-500" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-800">Check-in Not Open Yet</p>
+              <p className="text-xs text-slate-600 mt-1">Please wait until {earlyLimitTime} to mark your attendance.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ═══ Geofence Status ═══ */}
       {distanceInfo && todayStatus === 'none' && (
         <div className={`silk-card border-none p-4 flex items-center justify-between animate-fade-in ${
@@ -378,15 +408,15 @@ const Attendance = () => {
         {todayStatus === 'none' && (
           <button
             onClick={handleCheckIn}
-            disabled={loading || (isLate && requestStatus !== 'approved')}
+            disabled={loading || (isLate && requestStatus !== 'approved') || isTooEarly}
             className={`w-full silk-btn font-extrabold py-4.5 rounded-2xl shadow-xl transition-all flex items-center justify-center text-base tracking-tight ${
-              isLate && requestStatus !== 'approved' 
+              (isLate && requestStatus !== 'approved') || isTooEarly
                 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' 
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/25'
             }`}
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Fingerprint className="h-5 w-5 mr-2" />}
-            {loading ? 'Marking Attendance...' : isLate && requestStatus !== 'approved' ? 'Check-in Locked' : 'Mark Present — Check In'}
+            {loading ? 'Marking Attendance...' : (isLate && requestStatus !== 'approved') || isTooEarly ? 'Check-in Locked' : 'Mark Present — Check In'}
           </button>
         )}
 

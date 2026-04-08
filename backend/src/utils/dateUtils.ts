@@ -1,84 +1,116 @@
-/**
- * Global IST (Asia/Kolkata) Timezone Utilities
- * All functions return UTC Dates that correspond to the correct IST time.
- */
-
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // +5:30
+import tzlookup from 'tz-lookup';
 
 /**
- * Gets the current date/time in IST.
+ * Global Timezone Utilities (Refactored for GPS-based location)
+ * Default fallback is still Asia/Kolkata (IST).
  */
-export const getISTNow = (): Date => {
-    return new Date(); // Internal server time is UTC, we use UTC internally
+
+const DEFAULT_TIMEZONE = 'Asia/Kolkata';
+
+/**
+ * Maps GPS coordinates to a timezone string (e.g. "Asia/Kolkata").
+ * Returns Asia/Kolkata as fallback.
+ */
+export const getTimeZoneFromCoords = (lat: number, lng: number): string => {
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) return DEFAULT_TIMEZONE;
+    try {
+        return tzlookup(lat, lng);
+    } catch (e) {
+        console.error('Timezone lookup failed:', e);
+        return DEFAULT_TIMEZONE;
+    }
 };
 
 /**
- * Returns IST time components (hours, minutes, etc.) for a given UTC Date.
+ * Returns UTC Date components for a specific timezone.
  */
-export const getISTComponents = (date: Date = new Date()) => {
-    const istStr = date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
-    const istDate = new Date(istStr);
+export const getTZComponents = (date: Date = new Date(), timeZone: string = DEFAULT_TIMEZONE) => {
+    const tzStr = date.toLocaleString('en-US', { timeZone });
+    const tzDate = new Date(tzStr);
     return {
-        hours: istDate.getHours(),
-        minutes: istDate.getMinutes(),
-        day: istDate.getDay(),
-        date: istDate.getDate(),
-        month: istDate.getMonth(),
-        year: istDate.getFullYear(),
-        dateString: `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`,
+        hours: tzDate.getHours(),
+        minutes: tzDate.getMinutes(),
+        day: tzDate.getDay(),
+        date: tzDate.getDate(),
+        month: tzDate.getMonth(),
+        year: tzDate.getFullYear(),
+        dateString: `${tzDate.getFullYear()}-${String(tzDate.getMonth() + 1).padStart(2, '0')}-${String(tzDate.getDate()).padStart(2, '0')}`,
     };
 };
 
 /**
- * Returns a UTC Date representing the START (00:00:00) of an IST day.
+ * Deprecated: Use getTZComponents with 'Asia/Kolkata' or detect timezone.
  */
-export const getISTStartOfDay = (date: Date = new Date()): Date => {
-    const components = getISTComponents(date);
-    // Create UTC date representing IST midnight
+export const getISTComponents = (date: Date = new Date()) => getTZComponents(date, 'Asia/Kolkata');
+
+/**
+ * Returns a UTC Date representing the START (00:00:00) of a day in a given timezone.
+ */
+export const getTZStartOfDay = (date: Date = new Date(), timeZone: string = DEFAULT_TIMEZONE): Date => {
+    const components = getTZComponents(date, timeZone);
+    // Create UTC point at 00:00
     const utcMidnight = new Date(Date.UTC(components.year, components.month, components.date, 0, 0, 0, 0));
-    // Subtract offset to get true UTC equivalent: e.g. 05:30 IST is 00:00 UTC
-    // So 00:00 IST is 18:30 UTC of previous day.
-    utcMidnight.setTime(utcMidnight.getTime() - IST_OFFSET_MS);
+    
+    // Adjust for the specific timezone's offset at that point in time
+    const localTimeAtMidnight = new Date(utcMidnight.toLocaleString('en-US', { timeZone }));
+    const offsetMs = localTimeAtMidnight.getTime() - utcMidnight.getTime();
+    
+    utcMidnight.setTime(utcMidnight.getTime() - offsetMs);
     return utcMidnight;
 };
 
 /**
- * Returns a UTC Date representing the END (23:59:59) of an IST day.
+ * Deprecated: Use getTZStartOfDay.
  */
-export const getISTEndOfDay = (date: Date = new Date()): Date => {
-    const start = getISTStartOfDay(date);
+export const getISTStartOfDay = (date: Date = new Date()): Date => getTZStartOfDay(date, 'Asia/Kolkata');
+
+/**
+ * Returns a UTC Date representing the END (23:59:59) of a day in a given timezone.
+ */
+export const getTZEndOfDay = (date: Date = new Date(), timeZone: string = DEFAULT_TIMEZONE): Date => {
+    const start = getTZStartOfDay(date, timeZone);
     return new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
 };
 
 /**
- * Returns YYYY-MM-DD string for IST.
+ * Returns YYYY-MM-DD string for a specific timezone.
  */
-export const getTodayStringIST = (date: Date = new Date()): string => {
-    return getISTComponents(date).dateString;
+export const getTodayStringTZ = (date: Date = new Date(), timeZone: string = DEFAULT_TIMEZONE): string => {
+    return getTZComponents(date, timeZone).dateString;
 };
 
 /**
- * Returns starting and ending UTC Dates for an IST month.
+ * Deprecated: Use getTodayStringTZ.
  */
-export const getISTMonthBoundaries = (year: number, month: number) => {
-    // 00:00 IST on the 1st of the month
-    const startObj = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
-    startObj.setTime(startObj.getTime() - IST_OFFSET_MS);
+export const getTodayStringIST = (date: Date = new Date()): string => getTodayStringTZ(date, 'Asia/Kolkata');
 
-    // 23:59:59 IST on the last day of the month
-    const endObj = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
-    endObj.setTime(endObj.getTime() - IST_OFFSET_MS);
+/**
+ * Returns starting and ending UTC Dates for a month in a specific timezone.
+ */
+export const getTZMonthBoundaries = (year: number, month: number, timeZone: string = DEFAULT_TIMEZONE) => {
+    // 00:00 on the 1st
+    const startComp = { year, month: month - 1, date: 1 };
+    const start = getTZStartOfDay(new Date(Date.UTC(startComp.year, startComp.month, startComp.date)), timeZone);
 
-    return { start: startObj, end: endObj };
+    // 23:59:59 on the last day
+    const lastDay = new Date(Date.UTC(year, month, 0));
+    const end = getTZEndOfDay(lastDay, timeZone);
+
+    return { start, end };
 };
 
 /**
- * Formats a UTC Date to IST time string for display (e.g. "10:23 AM").
+ * Formats a Date to a specific timezone string for display.
  */
-export const formatISTTime = (date: Date): string => {
+export const formatTZTime = (date: Date, timeZone: string = DEFAULT_TIMEZONE): string => {
     return date.toLocaleTimeString('en-IN', {
         hour: '2-digit',
         minute: '2-digit',
-        timeZone: 'Asia/Kolkata',
+        timeZone,
     });
 };
+
+/**
+ * Deprecated: Use formatTZTime.
+ */
+export const formatISTTime = (date: Date): string => formatTZTime(date, 'Asia/Kolkata');
