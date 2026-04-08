@@ -1,3 +1,4 @@
+// @ts-ignore
 import tzlookup from 'tz-lookup';
 
 /**

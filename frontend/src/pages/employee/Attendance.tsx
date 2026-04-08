@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Fingerprint, LogIn, LogOut as LogOutIcon, CheckCircle2, Clock, Loader2, DoorOpen, MessageSquare, AlertTriangle, MapPin } from 'lucide-react';
+import { Fingerprint, LogIn, LogOut as LogOutIcon, CheckCircle2, Clock, Loader2, DoorOpen, MessageSquare, AlertTriangle, MapPin, History } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 const Attendance = () => {
@@ -19,6 +19,8 @@ const Attendance = () => {
   const [isTooEarly, setIsTooEarly] = useState(false);
   const [earlyLimitTime, setEarlyLimitTime] = useState('');
   const [config, setConfig] = useState<any>(null);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [stats, setStats] = useState({ present: 0, late: 0, hours: 0 });
 
   // Live clock
   const [distanceInfo, setDistanceInfo] = useState<any>(null);
@@ -68,7 +70,24 @@ const Attendance = () => {
       const todayStr = new Date().toISOString().slice(0, 10);
       let todayRec = null;
       if (attRes.status === 'fulfilled') {
-        todayRec = attRes.value.data.find((r: any) => r.date?.slice(0, 10) === todayStr);
+        const records = attRes.value.data;
+        setAttendance(records);
+        
+        // Calculate stats for current month
+        const nowMonth = new Date().getMonth();
+        const nowYear = new Date().getFullYear();
+        const monthly = records.filter((r: any) => {
+          const d = new Date(r.date);
+          return d.getMonth() === nowMonth && d.getFullYear() === nowYear;
+        });
+
+        setStats({
+          present: monthly.filter((r: any) => ['Present', 'Late'].includes(r.status)).length,
+          late: monthly.filter((r: any) => r.status === 'Late').length,
+          hours: monthly.reduce((sum: number, r: any) => sum + (r.totalWorkingHours || 0), 0)
+        });
+
+        todayRec = records.find((r: any) => r.date?.slice(0, 10) === todayStr);
         if (todayRec) {
           setTodayRecord(todayRec);
           setTodayStatus(todayRec.checkOut?.time ? 'checked_out' : 'checked_in');
@@ -278,6 +297,22 @@ const Attendance = () => {
         </p>
       </div>
 
+      {/* ═══ Monthly Stats Grid ═══ */}
+      <div className="grid grid-cols-3 gap-2.5 animate-fade-in-up delay-250">
+        <div className="bg-white rounded-2xl p-3 border border-slate-100/60 shadow-sm text-center">
+          <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1.5">Present</p>
+          <p className="text-lg font-black text-slate-800 leading-none">{stats.present}</p>
+        </div>
+        <div className="bg-white rounded-2xl p-3 border border-slate-100/60 shadow-sm text-center">
+          <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1.5">Late</p>
+          <p className="text-lg font-black text-amber-600 leading-none">{stats.late}</p>
+        </div>
+        <div className="bg-white rounded-2xl p-3 border border-slate-100/60 shadow-sm text-center">
+          <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1.5">Worked</p>
+          <p className="text-lg font-black text-primary-600 leading-none">{stats.hours.toFixed(0)}<span className="text-[10px] ml-0.5 opacity-50">h</span></p>
+        </div>
+      </div>
+
       {/* ═══ Late Check-in Alert ═══ */}
       {isLate && todayStatus === 'none' && requestStatus !== 'approved' && (
         <div className="silk-card border-rose-200 bg-rose-50/80 p-4 animate-scale-in">
@@ -448,6 +483,45 @@ const Attendance = () => {
             <p className="text-sm font-semibold text-primary-700">You're all done for today!</p>
           </div>
         )}
+      </div>
+
+      {/* ═══ Recent History ═══ */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-5 border border-slate-100 shadow-sm animate-slide-up">
+        <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-4 flex items-center">
+          <History className="h-3 w-3 mr-2" />
+          Recent Logs
+        </h3>
+        <div className="space-y-2.5">
+          {attendance && attendance.length > 0 ? (
+            attendance.slice(0, 5).map((rec: any, idx: number) => (
+              <div key={idx} className="flex items-center justify-between p-3.5 bg-white rounded-2xl border border-slate-100 hover:border-primary-100 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl ${
+                    rec.status === 'Present' ? 'bg-emerald-50 text-emerald-500' : 
+                    rec.status === 'Late' ? 'bg-amber-50 text-amber-500' : 'bg-slate-50 text-slate-400'
+                  }`}>
+                    {rec.status === 'Late' ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-slate-800">
+                      {new Date(rec.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                    </p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                      {rec.status} • {rec.checkIn?.time ? new Date(rec.checkIn.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-black text-primary-600">{rec.totalWorkingHours ? `${rec.totalWorkingHours}h` : '—'}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-2xl">
+              <p className="text-[10px] font-black text-slate-300 uppercase italic">No logs found</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ═══ REQUEST MODAL ═══ */}
