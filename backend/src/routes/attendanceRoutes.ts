@@ -3,7 +3,8 @@ import {
   checkIn, checkOut, getMyAttendance, getAllAttendance, 
   generateDailyQRs, getMyDailyQR,
   requestLateCheckIn, getAttendanceRequests, updateRequestStatus,
-  checkLocation, getOfficeLocations, createOfficeLocation, updateOfficeLocation, deleteOfficeLocation, updateAttendanceRecord
+  checkLocation, getOfficeLocations, createOfficeLocation, updateOfficeLocation, deleteOfficeLocation, updateAttendanceRecord,
+  getEmployeeAttendance
 } from '../controllers/attendanceController';
 import { protect, authorize } from '../middleware/authMiddleware';
 
@@ -35,6 +36,7 @@ router.get('/me', protect, getMyAttendance);
 
 // Admin: View and update all attendance
 router.get('/', protect, authorize('Admin', 'Manager', 'Super Admin'), getAllAttendance);
+router.get('/employee/:id', protect, authorize('Admin', 'Super Admin'), getEmployeeAttendance);
 router.patch('/:id', protect, authorize('Admin', 'Super Admin'), updateAttendanceRecord);
 
 export default router;

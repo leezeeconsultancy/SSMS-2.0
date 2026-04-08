@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Mail, Phone, Briefcase, Building, Calendar, IndianRupee, Shield, Clock } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const EmployeeProfile = () => {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -87,6 +89,13 @@ const EmployeeProfile = () => {
           );
         })}
       </div>
+
+      <button 
+        onClick={() => navigate('/employee/history')}
+        className="w-full silk-card py-4 font-black text-primary-600 flex items-center justify-center gap-3 active:scale-[0.98] transition-transform"
+      >
+        <Clock className="h-4 w-4" /> View Attendance History
+      </button>
 
       <p className="text-center text-[10px] text-slate-400 px-8 font-medium">
         To update your personal information, contact your HR administrator.

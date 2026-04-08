@@ -244,8 +244,8 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
     const existing = await Attendance.findOne({ employeeId: employee._id, date: { $gte: startOfDay } });
     if (existing) return res.status(400).json({ message: '🚫 Already checked in today.', validation: 'DUPLICATE_CHECKIN' });
 
-    // Determine Status (15 min grace)
-    const lateThreshold = new Date(shiftStart.getTime() + (15 * 60 * 1000));
+    // Determine Status (1 min grace period for 'Late' as requested)
+    const lateThreshold = new Date(shiftStart.getTime() + (1 * 60 * 1000));
     const status = serverNow > lateThreshold ? 'Late' : 'Present';
 
     const attendance = await Attendance.create({
@@ -584,6 +584,19 @@ export const updateAttendanceRecord = async (req: AuthRequest, res: Response) =>
 
     await record.save();
     return res.json({ message: 'Attendance record updated manually', record });
+  } catch (error: any) {
+    return res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
+
+/**
+ * Admin: Get any employee's attendance history
+ */
+export const getEmployeeAttendance = async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const records = await Attendance.find({ employeeId: id }).sort({ date: -1 });
+    return res.json(records);
   } catch (error: any) {
     return res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error' });
   }

@@ -13,6 +13,7 @@ import EmployeeDashboard from './pages/employee/Dashboard';
 import Attendance from './pages/employee/Attendance';
 import LeaveRequests from './pages/employee/LeaveRequests';
 import EmployeeProfile from './pages/employee/Profile';
+import AttendanceHistory from './pages/shared/AttendanceHistory';
 import { AuthProvider } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import axios from 'axios';
@@ -74,6 +75,7 @@ const App = () => {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="employees" element={<Employees />} />
+            <Route path="employees/:id/history" element={<AttendanceHistory />} />
             <Route path="attendance" element={<AttendanceRecords />} />
             <Route path="requests" element={<AttendanceRequests />} />
             <Route path="payroll" element={<PayrollLeave />} />
@@ -87,6 +89,7 @@ const App = () => {
             <Route path="attendance" element={<Attendance />} />
             <Route path="leaves" element={<LeaveRequests />} />
             <Route path="profile" element={<EmployeeProfile />} />
+            <Route path="history" element={<AttendanceHistory />} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Users, Plus, Search, Edit2, Trash2, Mail, Phone, X, Loader2, CheckCircle, Clock, AlertTriangle, Ban, RefreshCw, MapPin } from 'lucide-react';
 import Tooltip from '../../components/Tooltip';
 import toast, { Toaster } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface EmployeeType {
   _id: string;
@@ -40,6 +41,7 @@ const emptyForm = {
 };
 
 const Employees = () => {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState<EmployeeType[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -243,6 +245,9 @@ const Employees = () => {
                        {person.phone && (
                          <a href={`tel:${person.phone}`} className="p-2 sm:p-2.5 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 lg:hidden shadow-sm active:scale-95 transition-transform"><Phone className="h-4 w-4" /></a>
                        )}
+                      <Tooltip content="Attendance History" position="top">
+                        <button onClick={() => navigate(`/admin/employees/${person._id}/history`)} className="p-2 sm:p-2.5 rounded-xl bg-orange-50 text-orange-600 hover:bg-orange-100 shadow-sm active:scale-95 transition-transform"><Clock className="h-4 w-4" /></button>
+                      </Tooltip>
                       <Tooltip content="Edit Employee" position="top">
                         <button onClick={() => openEditModal(person)} className="p-2 sm:p-2.5 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 shadow-sm active:scale-95 transition-transform"><Edit2 className="h-4 w-4" /></button>
                       </Tooltip>
