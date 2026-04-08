@@ -32,6 +32,7 @@
     "tz-lookup": "^6.1.25"
   },
   "devDependencies": {
+    "@types/tz-lookup": "^6.1.2",
     "nodemon": "^3.1.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"

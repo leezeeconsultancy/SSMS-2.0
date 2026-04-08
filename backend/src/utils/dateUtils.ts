@@ -114,3 +114,8 @@ export const formatTZTime = (date: Date, timeZone: string = DEFAULT_TIMEZONE): s
  * Deprecated: Use formatTZTime.
  */
 export const formatISTTime = (date: Date): string => formatTZTime(date, 'Asia/Kolkata');
+
+/**
+ * Deprecated: Use getTZMonthBoundaries.
+ */
+export const getISTMonthBoundaries = (year: number, month: number) => getTZMonthBoundaries(year, month, 'Asia/Kolkata');
